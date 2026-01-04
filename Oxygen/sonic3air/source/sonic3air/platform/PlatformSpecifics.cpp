@@ -15,6 +15,11 @@
 	#include "sonic3air/platform/vita/trophies.h"
 #endif
 
+#if defined(PLATFORM_WIIU)
+#include <sys/stat.h>
+#include <cstring>
+#endif
+
 
 namespace
 {
@@ -88,5 +93,39 @@ void PlatformSpecifics::platformStartup()
 	}
 
 	changeWorkingDirectory(L"ux0:/data/sonic3air");
+#endif
+
+#if defined(PLATFORM_WIIU)
+	// Try common SD mount points and set working directory to the S3AIR folder if present
+	{
+		const char* candidates[] = {"sd:/S3AIR", "/vol/storage_sd/S3AIR", "/vol/storage_mlc01/S3AIR", "/vol/storage_usb01/S3AIR", "/S3AIR"};
+		for (const char* p : candidates)
+		{
+			struct stat st;
+			if (p && stat(p, &st) == 0 && (st.st_mode & S_IFDIR))
+			{
+				// Convert to wide string and change working directory
+				std::wstring wpath;
+				const size_t len = std::strlen(p);
+				wpath.reserve(len);
+				for (size_t i = 0; i < len; ++i) wpath.push_back((wchar_t)p[i]);
+				changeWorkingDirectory(wpath);
+				break;
+			}
+		}
+	}
+
+	// Verify required ROM is present in working directory
+	{
+		const char* requiredRom = "Sonic_Knuckles_wSonic3.bin";
+		struct stat st;
+		if (stat(requiredRom, &st) != 0)
+		{
+			// ROM not found — fail fast and instruct user where to place it
+			std::fprintf(stderr, "Error: required ROM '%s' not found in working directory.\nPlease place it in the S3AIR folder on the SD card.\n", requiredRom);
+			std::fflush(stderr);
+			exit(1);
+		}
+	}
 #endif
 }

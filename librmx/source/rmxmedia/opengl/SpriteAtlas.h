@@ -87,6 +87,8 @@ protected:
 
 
 #ifdef RMX_WITH_OPENGL_SUPPORT
+// Texture type
+#include "rmxmedia/opengl/Texture.h"
 
 class API_EXPORT SpriteAtlas : protected SpriteAtlasBase
 {

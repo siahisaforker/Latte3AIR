@@ -15,6 +15,9 @@
 
 #include "rmxmedia/opengl/SpriteAtlas.h"
 
+// Forward declarations
+class Texture;
+
 class Font;
 
 

@@ -11,6 +11,12 @@
 
 #pragma once
 
+#if defined(PLATFORM_WIIU)
+#include <thread>
+#include <atomic>
+#include <mutex>
+#endif
+
 
 class AudioReference;
 
@@ -118,6 +124,13 @@ namespace rmx
 		SDL_AudioDeviceID mAudioDeviceID = 0;		// Audio device opened by SDL
 		SDL_AudioSpec mFormat;						// Audio format
 		uint32 mAudioLocks = 0;						// Set if audio device is locked right now (needed to allow for nested audio locking)
+
+#if defined(PLATFORM_WIIU)
+		std::thread* mAudioThread = nullptr;           // Mixing thread for Wii U backend
+		std::atomic<bool> mAudioThreadRunning{false};
+		std::mutex mAudioMutex;                         // Protects audio state for Wii U backend
+		bool mAudioPlaying = true;
+#endif
 		std::map<int, AudioInstance> mInstances;	// Map of all active audio instances by their ID
 		std::vector<int> mRemoveIDs;				// Audio instance IDs that got invalid during audio mixing
 		int mNextFreeID = 1;						// ID to use for next audio instance created

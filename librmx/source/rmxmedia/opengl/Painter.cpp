@@ -10,6 +10,8 @@
 
 #ifdef RMX_WITH_OPENGL_SUPPORT
 
+#if !defined(PLATFORM_WIIU)
+
 namespace rmx
 {
 
@@ -252,5 +254,7 @@ namespace rmx
 	}
 
 }
+
+#endif
 
 #endif

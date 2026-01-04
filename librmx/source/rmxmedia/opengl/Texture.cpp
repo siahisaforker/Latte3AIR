@@ -10,6 +10,8 @@
 
 #ifdef RMX_WITH_OPENGL_SUPPORT
 
+#if !defined(PLATFORM_WIIU)
+
 Texture::Texture()
 {
 	initialize();

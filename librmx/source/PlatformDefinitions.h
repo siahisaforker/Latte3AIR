@@ -52,6 +52,11 @@
 	#define PLATFORM_SWITCH
 	#define USE_UTF8_PATHS
 
+// Wii U homebrew (devkitPPC / WUT)
+#elif defined(__WIIU__) || defined(__wiiu__) || defined(WIIU)
+	#define PLATFORM_WIIU
+	#define USE_UTF8_PATHS
+
 #elif __vita__
 	#define PLATFORM_VITA
 	#define USE_UTF8_PATHS
