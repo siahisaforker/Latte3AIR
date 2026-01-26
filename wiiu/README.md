@@ -12,6 +12,10 @@ make -C wiiu
 
 This will attempt to build `s3air_wiiu.elf` using the `wiiu/Makefile` scaffold. Adjust include paths and linker script as needed.
 
+
+UPDATE: forgot aroma can't run elf homebrew, fix coming soon
+
+
 Packaging:
 
 Run the helper script to stage the ELF and assets and optionally call `whb_pack`:
