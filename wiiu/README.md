@@ -13,7 +13,7 @@ make -C wiiu
 This will attempt to build `s3air_wiiu.elf` using the `wiiu/Makefile` scaffold. Adjust include paths and linker script as needed.
 
 
-UPDATE: forgot aroma can't run elf homebrew, fix coming soon
+UPDATE: forgot aroma can't run elf homebrew, fix coming soon. for now try to run on legacy cfw such as tiramisu
 
 
 Packaging:
