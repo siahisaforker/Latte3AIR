@@ -50,8 +50,11 @@ The build produces:
 
 ### Paths
 The port automatically tries to detect these locations:
+
 `/vol/external01/S3AIR/rom` (rom is where you put your bin)
+
 `/vol/external01/S3AIR/save` (save is where you put your save files)
+
 `/vol/external01/S3AIR/mods` (mods is where you put your mods)
 
 ## Features
@@ -65,10 +68,14 @@ The port automatically tries to detect these locations:
 - **Mods**: Basic mod loading support
 
 ### In Progress
+
 - **Network**: Adapting netplay for Wii U networking APIs
+
 - **OpenGL**: Full OpenGL renderer support
+
 - **Performance**: Optimizations for Wii U hardware
-- **
+
+  
 ## Technical Details
 
 ### Architecture
@@ -86,11 +93,11 @@ The port automatically tries to detect these locations:
 - **Makefiles**: Located in `Oxygen/sonic3air/build/_make/`
 
 ### Dependencies
-- **WUT**: Wii U system libraries
+- **WUT**: Wii U toolchain
 - **WHB**: Wii U homebrew libraries
 - **Coreinit**: System APIs (threading, filesystem, etc.)
 - **GX2**: Graphics API
-- **sndcore2**: Audio API
+- **sndcore2**: Audio API (WIP)
 
 ## Troubleshooting
 
@@ -112,7 +119,7 @@ make PLATFORM=WiiU -j8
 
 ### Common Errors
 - `ROM not found`: Ensure `Sonic_Knuckles_wSonic3.bin` is in the correct directory
-- `Failed to initialize graphics`: Check if GX2 drivers are available
+- `Failed to initialize graphics`: Check if GX2 is avalible (logging is avalible, check the logs to see if GX2 could initialize)
 - `Audio device error`: Verify sndcore2 is properly initialized
 
 ## Contributing
@@ -120,13 +127,13 @@ make PLATFORM=WiiU -j8
 ### Areas for Contribution
 - **Network Layer**: Adapt netplay code for Wii U networking
 - **Performance**: Optimize for Wii U hardware constraints
-- **Graphics**: Improve GX2 renderer integration
+- **Graphics**: Improve GX2 renderer
 - **Audio**: Enhance audio quality and features
 - **Input**: Add support for additional controllers
 
 ### Development Setup
 1. Clone this repository
-2. Install DevkitPro with Wii U support
+2. Install DevkitPro then get wiiu-dev from pacman
 3. Build using the instructions above
 4. Test with cemu or real hardware
 
