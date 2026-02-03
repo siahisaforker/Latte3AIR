@@ -58,8 +58,7 @@ The port automatically searches this location:
 
 
 ### ROM File Requirements
-- **Filename**: Must be exactly `Sonic_Knuckles_wSonic3.bin`
-- **Location**: Place in the same directory as `sonic3air.rpx`
+- **Filename**: Must be exactly `Sonic_Knuckles_wSonic3.bin``
 - **Format**: Original Sonic 3 & Knuckles ROM 
 - **Size**: Should be approximately 4MB
 
