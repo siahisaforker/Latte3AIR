@@ -3,8 +3,19 @@
 #include <cstring>
 #include <cstdlib> // malloc/free
 
+#if defined(PLATFORM_WIIU) || defined(__WIIU__)
+#include "platform/wiiu/endianness.h"
+#include "platform/wiiu/crash_prevention.h"
+#include <malloc.h>
+#endif
+
 void Renderer::initialize() {
+#if defined(PLATFORM_WIIU) || defined(__WIIU__)
+    // Use aligned memory for Wii U GPU buffers
+    mFrameBuffer = (uint32_t*)memalign(64, mWidth * mHeight * sizeof(uint32_t));
+#else
     mFrameBuffer = (uint32_t*)std::malloc(mWidth * mHeight * sizeof(uint32_t));
+#endif
     clearGameScreen();
 }
 
@@ -23,7 +34,13 @@ void Renderer::setGameResolution(int width, int height) {
     if (mFrameBuffer) std::free(mFrameBuffer);
     mWidth = width;
     mHeight = height;
+    
+#if defined(PLATFORM_WIIU) || defined(__WIIU__)
+    // Use aligned memory for Wii U GPU buffers
+    mFrameBuffer = (uint32_t*)memalign(64, mWidth * mHeight * sizeof(uint32_t));
+#else
     mFrameBuffer = (uint32_t*)std::malloc(mWidth * mHeight * sizeof(uint32_t));
+#endif
     clearGameScreen();
 }
 
