@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #if defined(PLATFORM_WIIU)
 #include "wiiu/WiiUThreading.h"
 #endif

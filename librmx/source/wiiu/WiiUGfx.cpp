@@ -88,6 +88,8 @@ namespace
 
 		OSScreenSetBufferEx(OS_SCREEN_TV, gState.mTVBuffer);
 		OSScreenSetBufferEx(OS_SCREEN_DRC, gState.mDRCBuffer);
+		OSScreenEnableEx(OS_SCREEN_TV, 1);
+		OSScreenEnableEx(OS_SCREEN_DRC, 1);
 
 		if (gState.mTVHeight > 0)
 		{

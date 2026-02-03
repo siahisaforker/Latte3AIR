@@ -129,21 +129,128 @@ typedef int32_t SDL_Scancode;
 
 // Common keycodes used in the project
 #define SDLK_RETURN       13
+#define SDLK_TAB          9
+#define SDLK_ESCAPE       27
+#define SDLK_BACKSPACE    8
+#define SDLK_SPACE        32
+
+// Punctuation / symbols (SDL keycodes match ASCII for these)
+#define SDLK_EXCLAIM      '!'
+#define SDLK_QUOTEDBL     '"'
+#define SDLK_HASH         '#'
+#define SDLK_PERCENT      '%'
+#define SDLK_DOLLAR       '$'
+#define SDLK_AMPERSAND    '&'
+#define SDLK_QUOTE        '\''
+#define SDLK_LEFTPAREN    '('
+#define SDLK_RIGHTPAREN   ')'
+#define SDLK_ASTERISK     '*'
+#define SDLK_PLUS         '+'
+#define SDLK_COMMA        ','
+#define SDLK_MINUS        '-'
+#define SDLK_PERIOD       '.'
+#define SDLK_SLASH        '/'
+#define SDLK_0            '0'
+#define SDLK_1            '1'
+#define SDLK_2            '2'
+#define SDLK_3            '3'
+#define SDLK_4            '4'
+#define SDLK_5            '5'
+#define SDLK_6            '6'
+#define SDLK_7            '7'
+#define SDLK_8            '8'
+#define SDLK_9            '9'
+#define SDLK_COLON        ':'
+#define SDLK_SEMICOLON    ';'
+#define SDLK_LESS         '<'
+#define SDLK_EQUALS       '='
+#define SDLK_GREATER      '>'
+#define SDLK_QUESTION     '?'
+#define SDLK_AT           '@'
+#define SDLK_LEFTBRACKET  '['
+#define SDLK_BACKSLASH    '\\'
+#define SDLK_RIGHTBRACKET ']'
+#define SDLK_CARET        '^'
+#define SDLK_UNDERSCORE   '_'
+#define SDLK_BACKQUOTE    96
+
+// Letter keys (SDL keycodes match ASCII for letters)
+#define SDLK_a 'a'
+#define SDLK_b 'b'
+#define SDLK_c 'c'
+#define SDLK_d 'd'
+#define SDLK_e 'e'
+#define SDLK_f 'f'
+#define SDLK_g 'g'
+#define SDLK_h 'h'
+#define SDLK_i 'i'
+#define SDLK_j 'j'
+#define SDLK_k 'k'
+#define SDLK_l 'l'
+#define SDLK_m 'm'
+#define SDLK_n 'n'
+#define SDLK_o 'o'
+#define SDLK_p 'p'
+#define SDLK_q 'q'
+#define SDLK_r 'r'
+#define SDLK_s 's'
+#define SDLK_t 't'
+#define SDLK_u 'u'
+#define SDLK_v 'v'
+#define SDLK_w 'w'
+#define SDLK_x 'x'
+#define SDLK_y 'y'
+#define SDLK_z 'z'
 #define SDLK_PRINTSCREEN  0x40000046
 #define SDLK_F1           0x4000003A
 #define SDLK_F2           0x4000003B
 #define SDLK_F3           0x4000003C
 #define SDLK_F4           0x4000003D
 #define SDLK_F5           0x4000003E
+#define SDLK_F7           0x40000040
 #define SDLK_F8           0x40000041
+#define SDLK_F10          0x40000043
+#define SDLK_F11          0x40000044
+
+#define SDLK_HOME         0x4000004A
+#define SDLK_PAGEUP       0x4000004B
+#define SDLK_END          0x4000004D
+#define SDLK_PAGEDOWN     0x4000004E
+
+#define SDLK_RIGHT        0x4000004F
+#define SDLK_LEFT         0x40000050
+#define SDLK_DOWN         0x40000051
+#define SDLK_UP           0x40000052
 #define SDLK_KP_PLUS      0x40000057
 #define SDLK_KP_MINUS     0x40000056
 #define SDLK_KP_DIVIDE    0x40000054
 #define SDLK_KP_MULTIPLY  0x40000055
+#define SDLK_KP_PERIOD    0x40000063
+#define SDLK_KP_ENTER     0x40000058
+#define SDLK_KP_0         0x40000062
+#define SDLK_KP_1         0x40000059
+#define SDLK_KP_2         0x4000005A
+#define SDLK_KP_3         0x4000005B
+#define SDLK_KP_4         0x4000005C
+#define SDLK_KP_5         0x4000005D
+#define SDLK_KP_6         0x4000005E
+#define SDLK_KP_7         0x4000005F
+#define SDLK_KP_8         0x40000060
+#define SDLK_KP_9         0x40000061
 #define SDLK_LALT         0x400000E2
 #define SDLK_RALT         0x400000E6
 #define SDLK_LSHIFT       0x400000E1
 #define SDLK_RSHIFT       0x400000E5
+#define SDLK_LCTRL        0x400000E0
+#define SDLK_RCTRL        0x400000E4
+#define SDLK_CLEAR        0x4000009C
+
+#define SDLK_CAPSLOCK     0x40000039
+#define SDLK_INSERT       0x40000049
+#define SDLK_DELETE       127
+
+// SDL encodes scancodes into keycodes using this mask.
+#define SDLK_SCANCODE_MASK (1u << 30)
 
 #define KMOD_NONE   0x0000
 #define KMOD_LSHIFT 0x0001
@@ -279,8 +386,8 @@ struct SDL_GameControllerButtonBind
 	SDL_GameControllerBindType bindType;
 	union
 	{
-		struct { int axis; } axis;
-		struct { int button; } button;
+		int axis;
+		int button;
 		struct { int hat; int hat_mask; } hat;
 	} value;
 };

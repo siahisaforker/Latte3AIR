@@ -37,9 +37,25 @@
 	#define SOMAXCONN 4096
 #endif
 
+#if defined(PLATFORM_WIIU)
+	#ifndef SOMAXCONN
+		#define SOMAXCONN 128
+	#endif
+#endif
+
 
 namespace
 {
+	static inline bool usesIPv6(Sockets::ProtocolFamily protocolFamily)
+	{
+	#if defined(PLATFORM_WIIU) || defined(PLATFORM_SWITCH)
+		(void)protocolFamily;
+		return false;
+	#else
+		return (protocolFamily >= Sockets::ProtocolFamily::IPv6);
+	#endif
+	}
+
 	void setSocketOptionGeneric(SOCKET socket, int level, int optname, void* ptr, size_t size)
 	{
 		const int result = ::setsockopt(socket, level, optname, (const char*)ptr, (int)size);
@@ -66,8 +82,8 @@ namespace
 		// Allow re-use of the port
 		setSocketOptionBool(socket, SOL_SOCKET, SO_REUSEADDR, true);
 
-	#if !defined(PLATFORM_SWITCH)	// The IPv6 part won't compile on Switch, but isn't really needed there anyways
-		if (protocolFamily >= Sockets::ProtocolFamily::IPv6)
+	#if !defined(PLATFORM_SWITCH) && !defined(PLATFORM_WIIU)	// The IPv6 part won't compile on Switch/Wii U, but isn't really needed there anyways
+		if (usesIPv6(protocolFamily))
 		{
 			// Optionally allow IPv4 + IPv6 dual stack support on the socket
 			setSocketOptionBool(socket, IPPROTO_IPV6, IPV6_V6ONLY, protocolFamily != Sockets::ProtocolFamily::DualStack);
@@ -118,7 +134,16 @@ bool Sockets::resolveToIP(const std::string& hostName, std::string& outIP, bool 
 		addrinfo* firstAddrInfo = addrInfo;
 
 		// Return either IPv4 or IPv6, depending on requested protocol family
-		const int aiFamily = useIPv6 ? AF_INET6 : AF_INET;
+		#if defined(PLATFORM_WIIU) || defined(PLATFORM_SWITCH)
+		const bool resolvedUseIPv6 = false;
+		#else
+		const bool resolvedUseIPv6 = useIPv6;
+		#endif
+		#if defined(PLATFORM_WIIU)
+		const int aiFamily = AF_INET;
+		#else
+		const int aiFamily = resolvedUseIPv6 ? AF_INET6 : AF_INET;
+		#endif
 
 		for (addrInfo = firstAddrInfo; nullptr != addrInfo; addrInfo = addrInfo->ai_next)
 		{
@@ -181,7 +206,7 @@ void SocketAddress::assureSockAddr() const
 	{
 		memset(&mSockAddr, 0, sizeof(mSockAddr));
 		bool success = false;
-	#if !defined(PLATFORM_SWITCH)	// The IPv6 part won't compile on Switch, but isn't really needed there anyways
+	#if !defined(PLATFORM_SWITCH) && !defined(PLATFORM_WIIU)	// The IPv6 part won't compile on Switch/Wii U, but isn't really needed there anyways
 		{
 			// IPv6
 			sockaddr_in6& addr = *reinterpret_cast<sockaddr_in6*>(&mSockAddr);
@@ -216,7 +241,7 @@ void SocketAddress::assureIpPort() const
 				inet_ntop(addressFamily, &(reinterpret_cast<sockaddr_in&>(mSockAddr).sin_addr), myIP, sizeof(myIP));
 				mPort = ntohs(reinterpret_cast<sockaddr_in&>(mSockAddr).sin_port);
 			}
-		#if !defined(PLATFORM_SWITCH)	// The IPv6 part won't compile on Switch, but isn't really needed there anyways
+		#if !defined(PLATFORM_SWITCH) && !defined(PLATFORM_WIIU)	// The IPv6 part won't compile on Switch/Wii U, but isn't really needed there anyways
 			else
 			{
 				// IPv6
@@ -313,7 +338,11 @@ bool TCPSocket::setupServer(uint16 serverPort, Sockets::ProtocolFamily protocolF
 
 	addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = (protocolFamily >= Sockets::ProtocolFamily::IPv6) ? AF_INET6 : AF_INET;
+	#if defined(PLATFORM_WIIU)
+	hints.ai_family = AF_INET;
+	#else
+	hints.ai_family = usesIPv6(protocolFamily) ? AF_INET6 : AF_INET;
+	#endif
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
@@ -449,7 +478,11 @@ bool TCPSocket::connectTo(const std::string& serverAddress, uint16 serverPort, S
 	{
 		addrinfo hints;
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = (protocolFamily >= Sockets::ProtocolFamily::IPv6) ? AF_INET6 : AF_INET;
+		#if defined(PLATFORM_WIIU)
+		hints.ai_family = AF_INET;
+		#else
+		hints.ai_family = usesIPv6(protocolFamily) ? AF_INET6 : AF_INET;
+		#endif
 		hints.ai_socktype = SOCK_STREAM;	// Needed for TCP
 		hints.ai_protocol = IPPROTO_TCP;	// Use TCP
 
@@ -654,7 +687,11 @@ bool UDPSocket::bindToPort(uint16 port, Sockets::ProtocolFamily protocolFamily)
 
 	addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = (protocolFamily >= Sockets::ProtocolFamily::IPv6) ? AF_INET6 : AF_INET;
+	#if defined(PLATFORM_WIIU)
+	hints.ai_family = AF_INET;
+	#else
+	hints.ai_family = usesIPv6(protocolFamily) ? AF_INET6 : AF_INET;
+	#endif
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_flags = AI_PASSIVE;
@@ -720,7 +757,11 @@ bool UDPSocket::bindToAnyPort(Sockets::ProtocolFamily protocolFamily)
 	}
 
 	// Create a socket
-	mInternal->mSocket = ::socket((protocolFamily >= Sockets::ProtocolFamily::IPv6) ? AF_INET6 : AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	#if defined(PLATFORM_WIIU)
+	mInternal->mSocket = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	#else
+	mInternal->mSocket = ::socket(usesIPv6(protocolFamily) ? AF_INET6 : AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	#endif
 	if (mInternal->mSocket < 0)
 	{
 		RMX_ERROR("socket failed with error: " << mInternal->mSocket, );

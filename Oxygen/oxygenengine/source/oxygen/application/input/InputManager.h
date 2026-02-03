@@ -13,10 +13,17 @@
 
 
 class InputManager;
+
+#if defined(PLATFORM_WIIU)
+// Wii U uses the in-repo SDL shim which already defines these types.
+struct SDL_Joystick;
+struct SDL_GameController;
+#else
 struct _SDL_Joystick;
 struct _SDL_GameController;
 typedef struct _SDL_Joystick SDL_Joystick;
 typedef struct _SDL_GameController SDL_GameController;
+#endif
 
 
 class InputFeeder

@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <atomic>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -53,8 +54,8 @@ namespace
 	struct AudioDevice
 	{
 		SDL_AudioSpec spec{};
-		std::thread thread;
-		std::mutex mutex;
+		rmx::WiiUThread thread;
+		rmx::WiiUMutex mutex;
 		std::atomic<bool> running{ false };
 		std::atomic<bool> paused{ true };
 	};
@@ -573,7 +574,7 @@ SDL_AudioDeviceID SDL_OpenAudioDevice(const char*, int, const SDL_AudioSpec* des
 
 	device->running = true;
 	device->paused = true;
-	device->thread = std::thread([device]() {
+	device->thread.start([device]() {
 		const int bytesPerSample = 2;
 		const int bufferSize = device->spec.samples * device->spec.channels * bytesPerSample;
 		std::vector<Uint8> buffer(bufferSize);
@@ -582,20 +583,21 @@ SDL_AudioDeviceID SDL_OpenAudioDevice(const char*, int, const SDL_AudioSpec* des
 		{
 			if (device->paused)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				rmx::WiiUThread::sleep(1);
 				continue;
 			}
 
 			{
-				std::lock_guard<std::mutex> lock(device->mutex);
+				device->mutex.lock();
 				if (device->spec.callback)
 					device->spec.callback(device->spec.userdata, buffer.data(), bufferSize);
+				device->mutex.unlock();
 			}
 
 			const double seconds = static_cast<double>(device->spec.samples) / static_cast<double>(device->spec.freq);
 			const auto sleepMs = static_cast<int>(seconds * 1000.0);
 			if (sleepMs > 0)
-				std::this_thread::sleep_for(std::chrono::milliseconds(sleepMs));
+				rmx::WiiUThread::sleep((uint32_t)sleepMs);
 		}
 	});
 

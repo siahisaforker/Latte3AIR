@@ -191,8 +191,12 @@ SOURCES	+=	\
 			Oxygen/oxygenengine/source/oxygen/application/overlays/SaveStateMenu \
 			Oxygen/oxygenengine/source/oxygen/application/overlays/TouchControlsOverlay \
 			Oxygen/oxygenengine/source/oxygen/application/video/VideoOut \
-			Oxygen/oxygenengine/source/oxygen/devmode/ImGuiHelpers \
-			Oxygen/oxygenengine/source/oxygen/devmode/ImGuiIntegration \
+			Oxygen/oxygenengine/source/oxygen/menu/imgui/ImGuiExtensions \
+			Oxygen/oxygenengine/source/oxygen/menu/imgui/ImGuiHelpers \
+			Oxygen/oxygenengine/source/oxygen/menu/imgui/ImGuiIntegration \
+			Oxygen/oxygenengine/source/oxygen/menu/imgui/ImGuiManager \
+			Oxygen/oxygenengine/source/oxygen/menu/imgui/ImGuiSoftwareRenderer \
+			Oxygen/oxygenengine/source/oxygen/menu/imgui/implementations/ImGuiFileBrowser \
 			Oxygen/oxygenengine/source/oxygen/download/Downloader \
 			Oxygen/oxygenengine/source/oxygen/download/DownloadManager \
 			Oxygen/oxygenengine/source/oxygen/drawing/DrawCollection \
@@ -204,7 +208,7 @@ SOURCES	+=	\
 			Oxygen/oxygenengine/source/oxygen/drawing/opengl/OpenGLDrawerTexture \
 			Oxygen/oxygenengine/source/oxygen/drawing/opengl/OpenGLSpriteTextureManager \
 			Oxygen/oxygenengine/source/oxygen/drawing/opengl/OpenGLTexture \
-			Oxygen/oxygenengine/source/oxygen/drawing/opengl/Upscaler \
+			Oxygen/oxygenengine/source/oxygen/drawing/opengl/OpenGLUpscaler \
 			Oxygen/oxygenengine/source/oxygen/drawing/software/Blitter \
 			Oxygen/oxygenengine/source/oxygen/drawing/software/SoftwareDrawer \
 			Oxygen/oxygenengine/source/oxygen/drawing/software/SoftwareDrawerTexture \
@@ -229,7 +233,7 @@ SOURCES	+=	\
 			Oxygen/oxygenengine/source/oxygen/network/netplay/NetplayClient \
 			Oxygen/oxygenengine/source/oxygen/network/netplay/NetplayHost \
 			Oxygen/oxygenengine/source/oxygen/network/netplay/NetplayManager \
-			Oxygen/oxygenengine/source/oxygen/platform/AndroidJavaInterface \
+			Oxygen/oxygenengine/source/oxygen/platform/android/AndroidJavaInterface \
 			Oxygen/oxygenengine/source/oxygen/platform/CrashHandler \
 			Oxygen/oxygenengine/source/oxygen/platform/PlatformFunctions \
 			Oxygen/oxygenengine/source/oxygen/rendering/Geometry \
@@ -420,8 +424,16 @@ SOURCES	+=	\
 ifeq ($(PLATFORM),WiiU)
 	INCLUDES += -I$(BASEDIR)
 	SOURCES	+=	\
+			librmx/source/rmxmedia/framework/VideoManager_WiiU \
+			librmx/source/rmxmedia/audiovideo/AudioManager_WiiU \
 			librmx/source/wiiu/SDL_shim \
 			librmx/source/wiiu/WiiUGfx \
+			librmx/source/wiiu/WiiUFileSystem \
+			librmx/source/wiiu/WiiUThreading \
+			librmx/source/wiiu/WiiUAudio \
+			librmx/source/wiiu/WiiUEndianness \
+			librmx/source/wiiu/WiiUROMLoader \
+			librmx/source/wiiu/WiiUSaveData \
 			platform/wiiu/render/renderer_instance \
 			platform/wiiu/render/gx2_renderer \
 			platform/wiiu/render/osscreen_renderer \

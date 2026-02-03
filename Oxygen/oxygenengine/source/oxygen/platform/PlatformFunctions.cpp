@@ -327,6 +327,18 @@ void PlatformFunctions::changeWorkingDirectory(std::wstring_view executableCallP
 		const std::wstring path = std::wstring(executableCallPath.substr(0, slashPos + 1));
 		rmx::FileSystem::setCurrentDirectory(path);
 	}
+#elif defined(PLATFORM_WIIU)
+	// On Wii U, allow callers to pass a directory directly (e.g. "sd:/S3AIR").
+	if (!executableCallPath.empty())
+	{
+		try
+		{
+			rmx::FileSystem::setCurrentDirectory(std::wstring(executableCallPath));
+		}
+		catch (...)
+		{
+		}
+	}
 #endif
 }
 

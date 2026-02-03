@@ -9,13 +9,13 @@
 #pragma once
 
 
+// SDL forward declaration (global namespace)
+//  - On Wii U this is provided by the in-repo SDL shim.
+struct SDL_Window;
+
+
 namespace rmx
 {
-
-// For Wii U builds we don't use SDL for window creation; forward-declare to keep header compatible
-#if defined(PLATFORM_WIIU)
-struct SDL_Window; // forward declaration only
-#endif
 
 	// FTX::Video
 	class API_EXPORT VideoManager

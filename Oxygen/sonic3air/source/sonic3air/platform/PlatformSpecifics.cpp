@@ -9,6 +9,8 @@
 #include "sonic3air/pch.h"
 #include "sonic3air/platform/PlatformSpecifics.h"
 
+#include "oxygen/platform/PlatformFunctions.h"
+
 #if defined(PLATFORM_VITA)
 	#include <vitasdk.h>
 	#include <vitaGL.h>
@@ -18,6 +20,9 @@
 #if defined(PLATFORM_WIIU)
 #include <sys/stat.h>
 #include <cstring>
+#include <whb/log.h>
+#include <whb/log_console.h>
+#include <whb/proc.h>
 #if defined(__has_include)
 #if __has_include(<padscore/kpad.h>)
 #include <padscore/kpad.h>
@@ -98,7 +103,7 @@ void PlatformSpecifics::platformStartup()
 		warning("This game features unlockable trophies but NoTrpDrm is not installed. If you want to be able to unlock trophies, please install it.");
 	}
 
-	changeWorkingDirectory(L"ux0:/data/sonic3air");
+	PlatformFunctions::changeWorkingDirectory(L"ux0:/data/sonic3air");
 #endif
 
 #if defined(PLATFORM_WIIU)
@@ -118,7 +123,7 @@ void PlatformSpecifics::platformStartup()
 				const size_t len = std::strlen(p);
 				wpath.reserve(len);
 				for (size_t i = 0; i < len; ++i) wpath.push_back((wchar_t)p[i]);
-				changeWorkingDirectory(wpath);
+				PlatformFunctions::changeWorkingDirectory(wpath);
 				break;
 			}
 		}
@@ -130,9 +135,17 @@ void PlatformSpecifics::platformStartup()
 		struct stat st;
 		if (stat(requiredRom, &st) != 0)
 		{
-			// ROM not found — fail fast and instruct user where to place it
-			std::fprintf(stderr, "Error: required ROM '%s' not found in working directory.\nPlease place it in the S3AIR folder on the SD card.\n", requiredRom);
-			std::fflush(stderr);
+			WHBProcInit();
+			WHBLogConsoleInit();
+			WHBLogPrintf("Error: required ROM '%s' not found in working directory.\n", requiredRom);
+			WHBLogPrintf("Place it in the S3AIR folder on the SD card (e.g. sd:/S3AIR).\n");
+			WHBLogPrintf("Press HOME to exit.\n");
+			while (WHBProcIsRunning())
+			{
+				WHBLogConsoleDraw();
+			}
+			WHBLogConsoleFree();
+			WHBProcShutdown();
 			exit(1);
 		}
 	}

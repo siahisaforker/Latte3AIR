@@ -38,6 +38,9 @@
 #elif defined(PLATFORM_LINUX)
 	#include <SDL2/SDL.h>
 
+#elif defined(PLATFORM_WIIU)
+	#include "wiiu/SDL_shim.h"
+
 #else
 	#include <SDL.h>
 #endif
