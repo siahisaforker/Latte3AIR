@@ -26,6 +26,7 @@
 #include <chrono>
 #include <thread>
 #include <malloc.h>
+#include <cstdio>
 
 static bool gShouldQuit = false;
 
@@ -81,48 +82,91 @@ int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
     
-    // Initialize basic Wii U systems
-    FSInit();
+    // Initialize basic Wii U systems with error checking
+    FSInit(); // FSInit returns void, not bool
     
-    // Try to initialize OSScreen for a simple test
-    OSScreenInit();
+    // Try to initialize OSScreen with error checking
+    OSScreenInit(); // OSScreenInit returns void, not bool
     
-    // Get buffer sizes
+    // Get buffer sizes with error checking
     uint32_t tvBufferSize = OSScreenGetBufferSizeEx(SCREEN_TV);
     uint32_t drcBufferSize = OSScreenGetBufferSizeEx(SCREEN_DRC);
     
-    // Allocate buffers
+    if (tvBufferSize == 0 || drcBufferSize == 0) {
+        // Invalid buffer sizes
+        OSScreenShutdown();
+        return -1;
+    }
+    
+    // Allocate buffers with alignment
     void* tvBuffer = memalign(0x100, tvBufferSize);
     void* drcBuffer = memalign(0x100, drcBufferSize);
+    
+    if (!tvBuffer || !drcBuffer) {
+        // Buffer allocation failed
+        OSScreenShutdown();
+        if (tvBuffer) free(tvBuffer);
+        if (drcBuffer) free(drcBuffer);
+        return -1;
+    }
     
     if (tvBuffer && drcBuffer) {
         // Set buffers
         OSScreenSetBufferEx(SCREEN_TV, tvBuffer);
         OSScreenSetBufferEx(SCREEN_DRC, drcBuffer);
         
-        // Show error message - NO ROM FOUND
-        OSScreenClearBufferEx(SCREEN_TV, 0x00FF0000); // Red background
-        OSScreenClearBufferEx(SCREEN_DRC, 0x00FF0000); // Red background
+        // Check for ROM file
+        const char* romPath = "/vol/external01/sonic3air/rom/Sonic_Knuckles_wSonic3.bin";
+        bool romExists = false;
         
-        // Flip buffers to show error
-        OSScreenFlipBuffersEx(SCREEN_TV);
-        OSScreenFlipBuffersEx(SCREEN_DRC);
-        
-        // Wait a bit (simple delay)
-        for (volatile int i = 0; i < 5000000; ++i) {
-            // Simple delay loop
+        // Try to open ROM file
+        FILE* romFile = fopen(romPath, "rb");
+        if (romFile) {
+            romExists = true;
+            fclose(romFile);
         }
         
-        // Clear to blue before exit
-        OSScreenClearBufferEx(SCREEN_TV, 0x000000FF); // Blue
-        OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF); // Blue
-        OSScreenFlipBuffersEx(SCREEN_TV);
-        OSScreenFlipBuffersEx(SCREEN_DRC);
+        if (!romExists) {
+            // Show "No rom file found" message - simplified to avoid crashes
+            OSScreenClearBufferEx(SCREEN_TV, 0x00FF0000); // Red background
+            OSScreenClearBufferEx(SCREEN_DRC, 0x00FF0000); // Red background
+            
+            // Simple text rendering using OSScreen - just show red screen for now
+            // The text rendering was causing crashes in Cemu
+            
+            // Flip buffers to show error
+            OSScreenFlipBuffersEx(SCREEN_TV);
+            OSScreenFlipBuffersEx(SCREEN_DRC);
+            
+            // Wait longer to show the error message
+            for (volatile int i = 0; i < 10000000; ++i) {
+                // Simple delay loop
+            }
+        } else {
+            // ROM found - show green screen briefly
+            OSScreenClearBufferEx(SCREEN_TV, 0x0000FF00); // Green background
+            OSScreenClearBufferEx(SCREEN_DRC, 0x0000FF00); // Green background
+            OSScreenFlipBuffersEx(SCREEN_TV);
+            OSScreenFlipBuffersEx(SCREEN_DRC);
+            
+            // Brief delay
+            for (volatile int i = 0; i < 2000000; ++i) {
+                // Simple delay loop
+            }
+            
+            // Clear to blue before exit
+            OSScreenClearBufferEx(SCREEN_TV, 0x000000FF); // Blue
+            OSScreenClearBufferEx(SCREEN_DRC, 0x000000FF); // Blue
+            OSScreenFlipBuffersEx(SCREEN_TV);
+            OSScreenFlipBuffersEx(SCREEN_DRC);
+        }
     }
     
     // Cleanup
     if (tvBuffer) free(tvBuffer);
     if (drcBuffer) free(drcBuffer);
+    
+    OSScreenShutdown();
     
     return 0;
 }

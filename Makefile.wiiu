@@ -1,7 +1,7 @@
 # Wii U build: platform layer + engine → one .rpx
 # Requires DEVKITPRO and wut. Usage: make -f Makefile.wiiu
 
-NAME     = sonic3air
+NAME     = sonic3air_debug
 SUFFIX   = .rpx
 OUTDIR   = bin/wiiu
 OBJDIR   = obj/wiiu
@@ -16,20 +16,12 @@ INCLUDES += -I$(DEVKITPRO)/wut/include -I$(DEVKITPRO)/portlibs/wiiu/include
 INCLUDES += -I. -Iplatform/wiiu -Iplatform/wiiu/render -Isrc
 
 LIBPATHS += -L$(DEVKITPRO)/wut/lib -L$(DEVKITPRO)/portlibs/wiiu/lib
-LIBS     += -lwut -lm -lpthread
+LIBS     = -lwut -lm -lpthread
 
+# Working base - fixed entry point + visual feedback
 SOURCES  += \
 	platform/wiiu/crt0 \
-	platform/wiiu/wiiu_main \
-	platform/wiiu/input \
-	platform/wiiu/threading \
-	platform/wiiu/audio \
-	platform/wiiu/render/renderer_instance \
-	platform/wiiu/render/gx2_renderer \
-	platform/wiiu/render/osscreen_renderer \
-	src/EngineAPI \
-	src/Renderer \
-	src/SpriteManager
+	platform/wiiu/main_visual
 
 OBJECTS  := $(addprefix $(OBJDIR)/, $(addsuffix .o, $(SOURCES)))
 BINPATH  := $(OUTDIR)/$(NAME)$(SUFFIX)
