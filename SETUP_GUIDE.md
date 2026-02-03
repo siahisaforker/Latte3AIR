@@ -68,10 +68,8 @@ The port automatically searches this location:
 1. **Build the project** using the instructions above
    ```
 2. **Launch via Aroma**:
-   - Open Aroma on your Wii U
-   - Navigate to the S3AIR directory
    - Launch `sonic3air.rpx`
-
+   - do note that you can also package it into a wuhb file with no problems, will probably add a script for that later
 ### First Launch
 The game should:
 1. **Initialize systems** (graphics, audio, input)
