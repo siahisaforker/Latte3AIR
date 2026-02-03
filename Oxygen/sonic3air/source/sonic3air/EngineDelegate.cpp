@@ -20,9 +20,13 @@
 
 #include "oxygen/application/Application.h"
 #include "oxygen/application/GameProfile.h"
+#include "oxygen/application/input/InputManager.h"
 #include "oxygen/platform/CrashHandler.h"
 #include "oxygen/simulation/CodeExec.h"
 #include "oxygen/simulation/EmulatorInterface.h"
+#if defined(PLATFORM_WIIU)
+	#include "sonic3air/platform/InputFeeder_WiiU.h"
+#endif
 
 #include <lemon/program/Program.h>
 #include <lemon/runtime/provider/NativizedOpcodeProvider.h>
@@ -85,6 +89,14 @@ bool EngineDelegate::onEnginePreStartup()
 	}
 
 	return true;
+}
+
+void EngineDelegate::onInputManagerStarted(InputManager& inputManager)
+{
+#if defined(PLATFORM_WIIU)
+	registerWiiUInputFeeder(inputManager);
+#endif
+	(void)inputManager;
 }
 
 bool EngineDelegate::isDedicatedApplication()

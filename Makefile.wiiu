@@ -1,0 +1,53 @@
+# Wii U build: platform layer + engine → one .rpx
+# Requires DEVKITPRO and wut. Usage: make -f Makefile.wiiu
+
+NAME     = sonic3air
+SUFFIX   = .rpx
+OUTDIR   = bin/wiiu
+OBJDIR   = obj/wiiu
+
+include $(DEVKITPRO)/wut/share/wut_rules
+
+DEFINES  += -DPLATFORM_WIIU -D__WIIU__
+CFLAGS   += $(MACHDEP)
+LDFLAGS  += $(MACHDEP) -Wl,--gc-sections
+
+INCLUDES += -I$(DEVKITPRO)/wut/include -I$(DEVKITPRO)/portlibs/wiiu/include
+INCLUDES += -I. -Iplatform/wiiu -Iplatform/wiiu/render -Isrc
+
+LIBPATHS += -L$(DEVKITPRO)/wut/lib -L$(DEVKITPRO)/portlibs/wiiu/lib
+LIBS     += -lwut -lm -lpthread
+
+SOURCES  += \
+	platform/wiiu/crt0 \
+	platform/wiiu/wiiu_main \
+	platform/wiiu/render/renderer_instance \
+	platform/wiiu/render/gx2_renderer \
+	platform/wiiu/render/osscreen_renderer \
+	src/EngineAPI \
+	src/Renderer \
+	src/SpriteManager
+
+OBJECTS  := $(addprefix $(OBJDIR)/, $(addsuffix .o, $(SOURCES)))
+BINPATH  := $(OUTDIR)/$(NAME)$(SUFFIX)
+
+all: $(BINPATH)
+
+$(shell mkdir -p $(OUTDIR) $(OBJDIR))
+
+$(OBJDIR)/%.o: %.cpp
+	@mkdir -p $(@D)
+	$(CXX) -c $(CFLAGS) $(INCLUDES) $(DEFINES) $< -o $@
+
+$(OBJDIR)/%.o: %.s
+	@mkdir -p $(@D)
+	$(CC) -c $(CFLAGS) $(INCLUDES) $(DEFINES) $< -o $@
+
+$(BINPATH): $(OBJECTS)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJECTS) $(LIBPATHS) $(LIBS) -o $@
+	$(STRIP) $@
+
+clean:
+	rm -rf $(OBJDIR) $(OUTDIR)
+
+.PHONY: all clean

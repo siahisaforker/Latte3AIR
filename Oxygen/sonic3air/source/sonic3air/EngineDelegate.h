@@ -23,6 +23,7 @@ public:
 	AudioOutBase& createAudioOut() override;
 
 	bool onEnginePreStartup() override;
+	void onInputManagerStarted(class InputManager& inputManager) override;
 	bool isDedicatedApplication() override;
 	bool setupCustomGameProfile() override;
 

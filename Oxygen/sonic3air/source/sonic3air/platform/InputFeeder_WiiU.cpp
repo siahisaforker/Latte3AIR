@@ -1,26 +1,31 @@
 /*
- * Wii U InputFeeder stub
- * Registers at the InputManager and provides TODO hooks to poll WHB pad and Pro controller state.
+ * Wii U InputFeeder: VPAD (GamePad) + KPAD (Pro Controller).
+ * Poll once per frame, feed into Oxygen via ControlsIn::injectInput().
  */
 
 #include "sonic3air/pch.h"
 #include "oxygen/application/input/InputManager.h"
+#include "oxygen/application/input/ControlsIn.h"
 
 #if defined(PLATFORM_WIIU)
+
+#include "platform/wiiu/input/input_state.h"
 
 class WiiUInputFeeder : public InputFeeder
 {
 public:
     WiiUInputFeeder() = default;
-    ~WiiUInputFeeder() override {}
+    ~WiiUInputFeeder() override = default;
 
     void updateControls() override
     {
-        if (!mInputManager)
+        if (!ControlsIn::hasInstance())
             return;
 
-        // TODO: Query WHBPad or other WUT input APIs and feed InputManager via its public methods.
-        // Example placeholder behavior: do nothing for now so the app can build and run.
+        InputState state;
+        pollWiiUInput(state);
+        const uint16_t flags = inputStateToOxygenFlags(state);
+        ControlsIn::instance().injectInput(0, flags);
     }
 };
 

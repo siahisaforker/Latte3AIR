@@ -18,6 +18,12 @@
 #if defined(PLATFORM_WIIU)
 #include <sys/stat.h>
 #include <cstring>
+#if defined(__has_include)
+#if __has_include(<padscore/kpad.h>)
+#include <padscore/kpad.h>
+#define WIIU_INIT_KPAD 1
+#endif
+#endif
 #endif
 
 
@@ -96,6 +102,9 @@ void PlatformSpecifics::platformStartup()
 #endif
 
 #if defined(PLATFORM_WIIU)
+#if defined(WIIU_INIT_KPAD)
+	KPADInit();
+#endif
 	// Try common SD mount points and set working directory to the S3AIR folder if present
 	{
 		const char* candidates[] = {"sd:/S3AIR", "/vol/storage_sd/S3AIR", "/vol/storage_mlc01/S3AIR", "/vol/storage_usb01/S3AIR", "/S3AIR"};

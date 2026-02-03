@@ -12,10 +12,13 @@
 #pragma once
 
 #if defined(PLATFORM_WIIU)
-#include <thread>
-#include <atomic>
-#include <mutex>
+#include "wiiu/WiiUThreading.h"
 #endif
+
+// Forward declaration for Wii U audio backend
+namespace rmx {
+class WiiUAudioBackend;
+}
 
 
 class AudioReference;
@@ -126,10 +129,11 @@ namespace rmx
 		uint32 mAudioLocks = 0;						// Set if audio device is locked right now (needed to allow for nested audio locking)
 
 #if defined(PLATFORM_WIIU)
-		std::thread* mAudioThread = nullptr;           // Mixing thread for Wii U backend
-		std::atomic<bool> mAudioThreadRunning{false};
-		std::mutex mAudioMutex;                         // Protects audio state for Wii U backend
-		bool mAudioPlaying = true;
+	rmx::WiiUThread* mAudioThread = nullptr;           // Mixing thread for Wii U backend
+	std::atomic<bool> mAudioThreadRunning{false};
+	rmx::WiiUMutex mAudioMutex;                         // Protects audio state for Wii U backend
+	bool mAudioPlaying = true;
+	WiiUAudioBackend* mWiiUAudio = nullptr;        // Wii U audio output backend
 #endif
 		std::map<int, AudioInstance> mInstances;	// Map of all active audio instances by their ID
 		std::vector<int> mRemoveIDs;				// Audio instance IDs that got invalid during audio mixing

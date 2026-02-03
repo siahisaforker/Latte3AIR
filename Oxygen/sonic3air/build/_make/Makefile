@@ -418,9 +418,14 @@ SOURCES	+=	\
 
 # Wii U specific sources
 ifeq ($(PLATFORM),WiiU)
+	INCLUDES += -I$(BASEDIR)
 	SOURCES	+=	\
 			librmx/source/wiiu/SDL_shim \
-			librmx/source/wiiu/WiiUGfx
+			librmx/source/wiiu/WiiUGfx \
+			platform/wiiu/render/renderer_instance \
+			platform/wiiu/render/gx2_renderer \
+			platform/wiiu/render/osscreen_renderer \
+			platform/wiiu/input/wiiu_input
 
 	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/ogg-vorbis/libogg/src/*.c))
 	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/ogg-vorbis/libvorbis/lib/*.c))

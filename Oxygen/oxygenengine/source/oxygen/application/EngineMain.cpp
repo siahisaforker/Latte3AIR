@@ -283,6 +283,7 @@ bool EngineMain::startupEngine()
 	// Input manager startup after config is loaded
 	RMX_LOG_INFO("Input initialization...");
 	InputManager::instance().startup();
+	mDelegate.onInputManagerStarted(InputManager::instance());
 
 	// Audio
 	RMX_LOG_INFO("Audio initialization...");

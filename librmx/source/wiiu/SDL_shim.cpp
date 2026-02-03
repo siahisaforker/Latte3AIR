@@ -1,20 +1,18 @@
 #include "wiiu/SDL_shim.h"
 #include "wiiu/WiiUGfx.h"
+#include "wiiu/WiiUFileSystem.h"
+#include "wiiu/WiiUThreading.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <unordered_map>
-#include <mutex>
-#include <thread>
-#include <condition_variable>
-#include <atomic>
 #include <vector>
-#include <chrono>
 #include <malloc.h>
 
 #include <vpad/input.h>
+#include <coreinit/time.h>
 
 struct SDL_RWops
 {
@@ -23,17 +21,17 @@ struct SDL_RWops
 
 struct SDL_Thread
 {
-	std::thread thread;
+	rmx::WiiUThread thread;
 };
 
 struct SDL_mutex
 {
-	std::mutex mutex;
+	rmx::WiiUMutex mutex;
 };
 
 struct SDL_cond
 {
-	std::condition_variable cond;
+	rmx::WiiUConditionVariable cond;
 };
 
 struct SDL_Joystick
@@ -120,15 +118,17 @@ const char* SDL_GetError()
 
 Uint32 SDL_GetTicks()
 {
-	static const auto start = std::chrono::steady_clock::now();
-	const auto now = std::chrono::steady_clock::now();
-	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-	return static_cast<Uint32>(ms);
+	// Use OSGetTime for Wii U timing
+	// OSGetTime returns time in nanoseconds, convert to milliseconds
+	uint64_t timeNs = OSGetTime();
+	return static_cast<Uint32>(timeNs / 1000000ULL);
 }
 
 void SDL_Delay(Uint32 ms)
 {
-	std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+	// Use OSSleep for Wii U delay
+	// OSSleep takes time in nanoseconds
+	OSSleep(ms * 1000000ULL);
 }
 
 int SDL_PollEvent(SDL_Event*)
@@ -837,8 +837,14 @@ int SDL_ConvertAudio(SDL_AudioCVT* cvt)
 
 SDL_RWops* SDL_RWFromFile(const char* file, const char* mode)
 {
+	if (!rmx::WiiUFileSystem::initialize())
+		return nullptr;
+
 	SDL_RWops* ops = new SDL_RWops();
-	ops->fp = std::fopen(file, mode);
+	
+	// Convert the path to Wii U path
+	std::string wiiUPath = rmx::WiiUFileSystem::getWiiUPath(std::string(file));
+	ops->fp = std::fopen(wiiUPath.c_str(), mode);
 	if (!ops->fp)
 	{
 		delete ops;
@@ -849,11 +855,17 @@ SDL_RWops* SDL_RWFromFile(const char* file, const char* mode)
 
 SDL_RWops* SDL_RWFromFile(const wchar_t* file, const char* mode)
 {
+	if (!rmx::WiiUFileSystem::initialize())
+		return nullptr;
+
 #if defined(__GNUC__)
 	// WUT uses UTF-8 paths; convert wide -> UTF-8
 	std::wstring ws(file ? file : L"");
 	std::string utf8(ws.begin(), ws.end());
-	return SDL_RWFromFile(utf8.c_str(), mode);
+	
+	// Convert the path to Wii U path
+	std::string wiiUPath = rmx::WiiUFileSystem::getWiiUPath(utf8);
+	return SDL_RWFromFile(wiiUPath.c_str(), mode);
 #else
 	return SDL_RWFromFile("", mode);
 #endif
@@ -957,7 +969,7 @@ void SDL_Log(const char* message)
 SDL_Thread* SDL_CreateThread(SDL_ThreadFunction fn, const char*, void* data)
 {
 	SDL_Thread* thread = new SDL_Thread();
-	thread->thread = std::thread([fn, data]() { return fn(data); });
+	thread->thread.start([fn, data]() { fn(data); });
 	return thread;
 }
 
@@ -970,8 +982,7 @@ void SDL_WaitThread(SDL_Thread* thread, int*)
 {
 	if (!thread)
 		return;
-	if (thread->thread.joinable())
-		thread->thread.join();
+	thread->thread.join();
 	delete thread;
 }
 
@@ -1007,15 +1018,16 @@ void SDL_DestroyCond(SDL_cond* cond)
 
 void SDL_CondSignal(SDL_cond* cond)
 {
-	if (cond) cond->cond.notify_one();
+	if (cond) cond->cond.signal();
 }
 
 int SDL_CondWaitTimeout(SDL_cond* cond, SDL_mutex* mutex, Uint32 ms)
 {
 	if (!cond || !mutex)
 		return -1;
-	std::unique_lock<std::mutex> lock(mutex->mutex, std::adopt_lock);
-	cond->cond.wait_for(lock, std::chrono::milliseconds(ms));
-	lock.release();
+	
+	// Wii U condition variables don't have timeout support
+	// For simplicity, we'll just wait without timeout
+	cond->cond.wait(mutex->mutex);
 	return 0;
 }

@@ -1,17 +1,16 @@
 /*
- * Wii U audio backend shim for AudioManager
- * Provides a mixing thread and TODO hooks for WHB/WUT audio output.
+ * Wii U audio backend implementation using sndcore2
+ * Provides a mixing thread and hooks for Wii U audio output.
  * This implementation mixes audio using the existing mixer code and
- * calls a platform-specific output path (currently a TODO).
+ * outputs to the Wii U audio system via sndcore2.
  */
 
 #include "rmxmedia.h"
+#include "wiiu/WiiUAudio.h"
+#include "wiiu/WiiUThreading.h"
 
-#include <thread>
-#include <atomic>
-#include <mutex>
-#include <condition_variable>
 #include <vector>
+#include <atomic>
 
 namespace rmx
 {
@@ -21,12 +20,17 @@ namespace rmx
 		mAudioThread(nullptr)
 	{
 		mAudioMixers[0] = &mRootMixer;
+		mWiiUAudio = new WiiUAudioBackend();
 	}
 
 	AudioManager::~AudioManager()
 	{
 		// Stop thread if running
 		exit();
+
+		// Delete Wii U audio backend
+		delete mWiiUAudio;
+		mWiiUAudio = nullptr;
 
 		// Delete all audio mixers (including the root mixer)
 		for (const auto& [key, audioMixer] : mAudioMixers)
@@ -61,9 +65,18 @@ namespace rmx
 		mFormat.channels = channels;
 		mFormat.samples = audioBufferSamples;
 
+		// Initialize Wii U audio backend
+		if (mWiiUAudio && !mWiiUAudio->initialize(sample_freq, channels, audioBufferSamples))
+		{
+			// Fall back to silent operation if audio initialization fails
+			delete mWiiUAudio;
+			mWiiUAudio = nullptr;
+		}
+
 		mPlayedSamples = 0;
 		mAudioThreadRunning = true;
-		mAudioThread = new std::thread([this]() {
+		mAudioThread = new WiiUThread();
+		mAudioThread->start([this]() {
 			const int bytesPerSample = sizeof(short) * mFormat.channels;
 			const int bufSamples = mFormat.samples;
 			std::vector<uint8> outbuf(bufSamples * bytesPerSample);
@@ -71,14 +84,16 @@ namespace rmx
 			{
 				// Mix audio into outbuf
 				mixAudio(outbuf.data(), (int)outbuf.size());
-				// TODO: Send `outbuf` to WHB/WUT audio output for TV and GamePad here.
-				// Example placeholders:
-				// whbAudioWrite(outbuf.data(), outbuf.size());
-				// whbGamePadAudioWrite(outbuf.data(), outbuf.size());
+				
+				// Output to Wii U audio system
+				if (mWiiUAudio && mWiiUAudio->isInitialized())
+				{
+					mWiiUAudio->outputAudio(outbuf.data(), outbuf.size());
+				}
 
 				// Simple scheduler: sleep for buffer duration
 				double seconds = (double)bufSamples / (double)mFormat.freq;
-				std::this_thread::sleep_for(std::chrono::duration<double>(seconds * 0.9));
+				WiiUThread::sleep(static_cast<uint32_t>(seconds * 1000.0 * 0.9));
 			}
 		});
 	}
@@ -92,6 +107,12 @@ namespace rmx
 				mAudioThread->join();
 			delete mAudioThread;
 			mAudioThread = nullptr;
+		}
+
+		// Shutdown Wii U audio backend
+		if (mWiiUAudio)
+		{
+			mWiiUAudio->shutdown();
 		}
 	}
 
@@ -189,6 +210,12 @@ namespace rmx
 	void AudioManager::setGlobalVolume(float volume)
 	{
 		mRootMixer.setVolume(volume);
+		
+		// Also set volume on Wii U audio backend
+		if (mWiiUAudio && mWiiUAudio->isInitialized())
+		{
+			mWiiUAudio->setVolume(volume);
+		}
 	}
 
 	AudioMixer* AudioManager::getAudioMixerByID(int mixerId) const
