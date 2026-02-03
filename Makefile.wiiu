@@ -21,6 +21,9 @@ LIBS     += -lwut -lm -lpthread
 SOURCES  += \
 	platform/wiiu/crt0 \
 	platform/wiiu/wiiu_main \
+	platform/wiiu/input \
+	platform/wiiu/threading \
+	platform/wiiu/audio \
 	platform/wiiu/render/renderer_instance \
 	platform/wiiu/render/gx2_renderer \
 	platform/wiiu/render/osscreen_renderer \
