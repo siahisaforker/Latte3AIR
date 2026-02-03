@@ -159,4 +159,4 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 **Note 2**: There are some issues with the Makefile that prevent it from building. I aim to fix that soon, but even if you could build it
 it probably won't work. it's in progress.
 
-**Note 3**: if you can get this to compile and run and it doesn't work (or crashes), make note of the logging. It shows exactly what initializes as it is happening, test on cemu if needed. Create an Issue if you can't figure it out yourself.
+**Note 3**: if you can get this to compile and run and it doesn't work (or crashes), make note of the logging. It shows exactly what initializes as it is happening, test on cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md)
