@@ -2,7 +2,7 @@
 
 A native Wii U port of **Sonic 3 A.I.R.** (Angel Island Revisited), a fan-made remaster of Sonic 3 & Knuckles built on the Oxygen Engine.
 
-## 🎯 Project Status
+## Project Status
 
 **Current State: Active Development**
 
@@ -25,7 +25,7 @@ A native Wii U port of **Sonic 3 A.I.R.** (Angel Island Revisited), a fan-made r
 ## Quick Start
 
 ### Prerequisites
-- **Wii U with Aroma** (or compatible homebrew environment)
+- **Wii U with Aroma** (or compatible homebrew environment like Tiramisu)
 - **DevkitPro/WUT toolchain** (for building)
 - **Original ROM**: `Sonic_Knuckles_wSonic3.bin`
 
@@ -156,5 +156,7 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 
 
 
-**Note 2** There are some issues with the Makefile that prevent it from building. I aim to fix that soon, but even if you could build it
+**Note 2**: There are some issues with the Makefile that prevent it from building. I aim to fix that soon, but even if you could build it
 it probably won't work. it's in progress.
+
+**Note 3**: if you can get this to compile and run and it doesn't work (or crashes), make note of the logging. It shows exactly what initializes as it is happening, test on cemu if needed
