@@ -5,12 +5,19 @@ A native Wii U port of **Sonic 3 A.I.R.** (Angel Island Revisited), a fan-made r
 ## 🎯 Project Status
 
 **Current State: Active Development**
+
 -Core Oxygen Engine builds for Wii U
+
 -Basic video output (OSScreen fallback + GX2 via WHBGfx)
+
 -Input handling (VPAD/KPAD integration)
+
 -Audio system (sndcore2 backend)
+
 -Filesystem access (SD card support)
+
 -Network (being adapted for Wii U)
+
 -OpenGL renderer (software renderer active)
 
 **Goal: 1:1 feature parity with PC version**
