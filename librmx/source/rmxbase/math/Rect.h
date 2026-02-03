@@ -50,6 +50,9 @@ public:
 	Vec2<TYPE> getCenter() const { return Vec2<TYPE>(x + width / TYPE(2), y + height / TYPE(2)); }
 	Vec2<TYPE> getEndPos() const { return Vec2<TYPE>(x + width, y + height); }
 
+	// Convenience helper used by some platform painters
+	Vec2<TYPE> topLeft() const { return Vec2<TYPE>(x, y); }
+
 	void set(TYPE px, TYPE py, TYPE w, TYPE h)  { x = px;  y = py;  width = w;  height = h; }
 	void set(Vec2<TYPE> pos, Vec2<TYPE> size)	{ x = pos.x;  y = pos.y;  width = size.x;  height = size.y; }
 	void set(const TRect& rect)			{ set(rect.x, rect.y, rect.width, rect.height); }

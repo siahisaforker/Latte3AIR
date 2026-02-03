@@ -15,6 +15,9 @@
 
 #include <functional>
 
+// Forward declarations
+class Texture;
+
 
 // Shader class
 class API_EXPORT Shader

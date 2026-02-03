@@ -27,6 +27,10 @@
 #endif
 
 
+// Exclude the default SDL/OpenGL implementation on Wii U — a platform-specific implementation
+// will be compiled from VideoManager_WiiU.cpp
+#if !defined(PLATFORM_WIIU)
+
 namespace rmx
 {
 
@@ -211,12 +215,12 @@ namespace rmx
 	{
 		if (mVideoConfig.mAutoClearScreen)
 		{
-		#ifdef RMX_WITH_OPENGL_SUPPORT
+	#ifdef RMX_WITH_OPENGL_SUPPORT
 			if (mVideoConfig.mRenderer == VideoConfig::Renderer::OPENGL)
 			{
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			}
-		#endif
+	#endif
 		}
 	}
 
@@ -224,12 +228,12 @@ namespace rmx
 	{
 		if (mVideoConfig.mAutoSwapBuffers)
 		{
-		#ifdef RMX_WITH_OPENGL_SUPPORT
+	#ifdef RMX_WITH_OPENGL_SUPPORT
 			if (mVideoConfig.mRenderer == VideoConfig::Renderer::OPENGL)
 			{
 				SDL_GL_SwapWindow(mMainWindow);
 			}
-		#endif
+	#endif
 		}
 		mReshaped = false;
 	}
@@ -304,3 +308,5 @@ namespace rmx
 	}
 
 }
+
+#endif // !PLATFORM_WIIU

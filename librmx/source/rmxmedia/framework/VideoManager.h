@@ -12,6 +12,11 @@
 namespace rmx
 {
 
+// For Wii U builds we don't use SDL for window creation; forward-declare to keep header compatible
+#if defined(PLATFORM_WIIU)
+struct SDL_Window; // forward declaration only
+#endif
+
 	// FTX::Video
 	class API_EXPORT VideoManager
 	{

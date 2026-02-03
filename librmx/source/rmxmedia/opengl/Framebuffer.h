@@ -13,6 +13,9 @@
 
 #ifdef RMX_WITH_OPENGL_SUPPORT
 
+// Forward declarations
+class Texture;
+
 
 class API_EXPORT Renderbuffer
 {

@@ -18,11 +18,13 @@ OpenGLFontOutput::OpenGLFontOutput(Font& font) :
 
 void OpenGLFontOutput::print(const std::vector<Font::TypeInfo>& infos)
 {
-	// Display with OpenGL
+	// Display with OpenGL when available. On Wii U the Painter_WiiU uses
+	// buildVertexGroups() directly and issues platform draws, so skip the
+	// legacy immediate-mode rendering here.
 	if (FTX::Video->getVideoConfig().mRenderer != rmx::VideoConfig::Renderer::OPENGL)
 		return;
 
-#ifdef ALLOW_LEGACY_OPENGL
+#if defined(ALLOW_LEGACY_OPENGL) && !defined(PLATFORM_WIIU)
 	// Fill vertex groups
 	static VertexGroups vertexGroups;
 	buildVertexGroups(vertexGroups, infos);
@@ -42,7 +44,7 @@ void OpenGLFontOutput::print(const std::vector<Font::TypeInfo>& infos)
 		glEnd();
 	}
 #else
-	RMX_ASSERT(false, "Unsupported without legacy OpenGL support");
+	(void)infos; // no-op on non-OpenGL platforms (Wii U)
 #endif
 }
 

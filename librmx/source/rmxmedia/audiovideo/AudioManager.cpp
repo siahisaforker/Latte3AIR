@@ -12,6 +12,8 @@
 namespace rmx
 {
 
+#if !defined(PLATFORM_WIIU)
+
 	AudioManager::AudioManager() :
 		mRootMixer(*new AudioMixer(0))	// Root mixer always uses ID 0
 	{
@@ -499,4 +501,7 @@ namespace rmx
 		return true;
 	}
 
-}
+ 
+#endif // !defined(PLATFORM_WIIU)
+
+} // namespace rmx

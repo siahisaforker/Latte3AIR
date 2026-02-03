@@ -12,6 +12,8 @@
 #pragma once
 
 #ifdef RMX_WITH_OPENGL_SUPPORT
+// Forward declarations
+class Texture;
 
 namespace rmx
 {
