@@ -7,6 +7,8 @@ BUILD_STRING	= `grep BUILD_STRING ../../source/sonic3air/version.inc | cut -d'"'
 BUILD_VARIANT	= `grep BUILD_VARIANT ../../source/sonic3air/version.inc | cut -d'"' -f2`
 SUFFIX		=  
 PKGCONFIG	=  pkg-config
+PKGCONFIG_LIBS ?= sdl2 ogg vorbis theora vorbisfile theoradec zlib minizip
+SKIP_PKGCONFIG ?= 0
 DEBUG		?= 0
 STATIC		?= 1
 VERBOSE		?= 0
@@ -93,8 +95,10 @@ endif
 
 # =============================================================================
 
-CFLAGS += `$(PKGCONFIG) --cflags sdl2 ogg vorbis theora vorbisfile theoradec zlib minizip`
-LIBS   += `$(PKGCONFIG) --libs-only-l --libs-only-L sdl2 ogg vorbis theora vorbisfile theoradec zlib minizip`
+ifeq ($(SKIP_PKGCONFIG),0)
+CFLAGS += `$(PKGCONFIG) --cflags $(PKGCONFIG_LIBS)`
+LIBS   += `$(PKGCONFIG) --libs-only-l --libs-only-L $(PKGCONFIG_LIBS)`
+endif
 
 ifeq ($(STATIC),1)
 	CFLAGS += -static
@@ -411,6 +415,20 @@ SOURCES	+=	\
 			librmx/source/rmxmedia/opengl/VertexArrayObject \
 			librmx/source/rmxmedia/threads/JobManager \
 			librmx/source/rmxmedia/threads/Thread \
+
+# Wii U specific sources
+ifeq ($(PLATFORM),WiiU)
+	SOURCES	+=	\
+			librmx/source/wiiu/SDL_shim \
+			librmx/source/wiiu/WiiUGfx
+
+	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/ogg-vorbis/libogg/src/*.c))
+	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/ogg-vorbis/libvorbis/lib/*.c))
+	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/zlib/zlib/*.c))
+	SOURCES	+=	framework/external/zlib/zlib/contrib/minizip/ioapi \
+				framework/external/zlib/zlib/contrib/minizip/unzip \
+				framework/external/zlib/zlib/contrib/minizip/zip
+endif
 
 # =============================================================================
 

@@ -38,6 +38,9 @@
 #elif defined(PLATFORM_LINUX)
 	#include <SDL2/SDL.h>
 
+#elif defined(PLATFORM_WIIU)
+	#include "wiiu/SDL_shim.h"
+
 #else
 	#include <SDL.h>
 #endif
@@ -88,6 +91,9 @@
 #elif defined(PLATFORM_VITA)
 	#include <vitaGL.h>
 	#define RMX_USE_GLES2
+
+#elif defined(PLATFORM_WIIU)
+	// No OpenGL on Wii U; rendering is handled via GX2/OSScreen.
 
 #else
 	#error Unsupported platform

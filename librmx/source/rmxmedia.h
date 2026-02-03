@@ -19,7 +19,9 @@
 
 // OpenGL support master switch
 //  -> Can be disabled for platforms where OpenGL does not work
-#define RMX_WITH_OPENGL_SUPPORT
+#if !defined(PLATFORM_WIIU)
+	#define RMX_WITH_OPENGL_SUPPORT
+#endif
 
 
 // General includes

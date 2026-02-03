@@ -18,6 +18,7 @@
 //  - PLATFORM_WEB		-> Web version (via emscripten)
 //  - PLATFORM_SWITCH	-> Nintendo Switch (homebrew)
 //  - PLATFORM_VITA		-> Playstation Vita (homebrew)
+//  - PLATFORM_WIIU		-> Nintendo Wii U (homebrew)
 
 
 // Platform specific
@@ -54,6 +55,10 @@
 
 #elif __vita__
 	#define PLATFORM_VITA
+	#define USE_UTF8_PATHS
+
+#elif defined(__WIIU__) || defined(__WUT__) || defined(__CAFE__)
+	#define PLATFORM_WIIU
 	#define USE_UTF8_PATHS
 
 #else

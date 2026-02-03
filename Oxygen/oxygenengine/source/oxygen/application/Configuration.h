@@ -196,6 +196,8 @@ public:
 	WindowMode mWindowMode = WindowMode::WINDOWED;
 #if defined(PLATFORM_VITA)
 	Vec2i mWindowSize = Vec2i(960, 544);
+#elif defined(PLATFORM_WIIU)
+	Vec2i mWindowSize = Vec2i(1280, 720);
 #else
 	Vec2i mWindowSize = Vec2i(1200, 672);
 #endif
