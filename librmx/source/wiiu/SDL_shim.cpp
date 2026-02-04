@@ -129,7 +129,8 @@ void SDL_Delay(Uint32 ms)
 {
 	// Use OSSleep for Wii U delay
 	// OSSleep takes time in nanoseconds
-	OSSleep(ms * 1000000ULL);
+	// Convert milliseconds to OS ticks and sleep
+	OSSleepTicks(OSMillisecondsToTicks(ms));
 }
 
 int SDL_PollEvent(SDL_Event*)
@@ -498,7 +499,7 @@ SDL_GameControllerButtonBind SDL_GameControllerGetBindForAxis(SDL_GameController
 {
 	SDL_GameControllerButtonBind bind{};
 	bind.bindType = SDL_CONTROLLER_BINDTYPE_AXIS;
-	bind.value.axis.axis = static_cast<int>(axis);
+	bind.value.axis = static_cast<int>(axis);
 	return bind;
 }
 
@@ -524,7 +525,7 @@ SDL_GameControllerButtonBind SDL_GameControllerGetBindForButton(SDL_GameControll
 		default:
 		{
 			bind.bindType = SDL_CONTROLLER_BINDTYPE_BUTTON;
-			bind.value.button.button = static_cast<int>(button);
+			bind.value.button = static_cast<int>(button);
 			return bind;
 		}
 	}

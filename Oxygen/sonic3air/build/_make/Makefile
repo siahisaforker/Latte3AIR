@@ -16,6 +16,28 @@ PROFILE		?= 0
 STRIP		?= strip
 BASEDIR		?= ../../../..
 
+# If a ROM binary is present in `Oxygen/sonic3air/___internal`, generate a C header
+# containing the ROM bytes so it can be embedded into the RPX at build time.
+ROM_BIN := $(BASEDIR)/___internal/Sonic_Knuckles_wSonic3.bin
+ROM_HDR := $(BASEDIR)/___internal/rom_data.h
+ifneq ($(wildcard $(ROM_BIN)),)
+$(shell (python3 $(BASEDIR)/tools/bin2c.py $(ROM_BIN) $(ROM_HDR) || python $(BASEDIR)/tools/bin2c.py $(ROM_BIN) $(ROM_HDR)) >/dev/null 2>&1 || true)
+endif
+
+.PHONY: embed-rom
+embed-rom:
+	@echo "Checking for embedded ROM: $(ROM_BIN)"
+	# If a ROM exists in `game`, copy it into `___internal` so the header is generated there.
+	@if [ -f "$(BASEDIR)/game/Sonic_Knuckles_wSonic3.bin" ]; then \
+		mkdir -p "$(BASEDIR)/___internal"; \
+		cp "$(BASEDIR)/game/Sonic_Knuckles_wSonic3.bin" "$(ROM_BIN)" && echo "Copied ROM to $(ROM_BIN)"; \
+	fi
+	@if [ -f "$(ROM_BIN)" ]; then \
+		( python3 "$(BASEDIR)/tools/bin2c.py" "$(ROM_BIN)" "$(ROM_HDR)" || python "$(BASEDIR)/tools/bin2c.py" "$(ROM_BIN)" "$(ROM_HDR)" ) && echo "Generated $(ROM_HDR)"; \
+	else \
+		echo "No ROM found at $(ROM_BIN), skipping."; \
+	fi
+
 CFLAGS		?= -std=c++17 -Wno-psabi
 
 ENDUSER		?= 1
@@ -124,6 +146,7 @@ SOURCES	+=	\
 			Oxygen/lemonscript/source/lemon/compiler/TokenHelper \
 			Oxygen/lemonscript/source/lemon/compiler/TypeCasting \
 			Oxygen/lemonscript/source/lemon/compiler/backend/FunctionCompiler \
+			Oxygen/lemonscript/source/lemon/compiler/backend/OpcodeOptimization \
 			Oxygen/lemonscript/source/lemon/compiler/frontend/CompilerFrontend \
 			Oxygen/lemonscript/source/lemon/compiler/frontend/TokenProcessing \
 			Oxygen/lemonscript/source/lemon/compiler/parser/Parser \
@@ -157,6 +180,7 @@ SOURCES	+=	\
 			Oxygen/lemonscript/source/lemon/utility/PragmaSplitter \
 			Oxygen/lemonscript/source/lemon/utility/StringFormatter \
 			Oxygen/lemonscript/source/lemon/utility/StringFormatterLegacy \
+			Oxygen/lemonscript/source/lemon/utility/DataTypeHelper \
 			Oxygen/oxygenengine/source/oxygen/pch \
 			Oxygen/oxygenengine/source/oxygen/application/Application \
 			Oxygen/oxygenengine/source/oxygen/application/Configuration \
@@ -311,6 +335,7 @@ SOURCES	+=	\
 			Oxygen/sonic3air/source/sonic3air/main \
 			Oxygen/sonic3air/source/sonic3air/pch \
 			Oxygen/sonic3air/source/sonic3air/platform/PlatformSpecifics \
+			Oxygen/sonic3air/source/sonic3air/platform/InputFeeder_WiiU \
 			Oxygen/sonic3air/source/sonic3air/_nativized/NativizedCode \
 			Oxygen/sonic3air/source/sonic3air/audio/AudioOut \
 			Oxygen/sonic3air/source/sonic3air/audio/CustomAudioMixer \
@@ -357,6 +382,7 @@ SOURCES	+=	\
 			Oxygen/sonic3air/source/sonic3air/resources/DynamicSprites \
 			Oxygen/sonic3air/source/sonic3air/scriptimpl/ScriptImplementations \
 			librmx/source/rmxbase/_jsoncpp/json_reader \
+			Oxygen/sonic3air/source/sonic3air/___internal/rom_data \
 			librmx/source/rmxbase/_jsoncpp/json_value \
 			librmx/source/rmxbase/_jsoncpp/json_writer \
 			librmx/source/rmxbase/rmxbase \
@@ -437,7 +463,9 @@ ifeq ($(PLATFORM),WiiU)
 			platform/wiiu/render/renderer_instance \
 			platform/wiiu/render/gx2_renderer \
 			platform/wiiu/render/osscreen_renderer \
-			platform/wiiu/input/wiiu_input
+			platform/wiiu/input/wiiu_input \
+			platform/wiiu/atomic_stubs \
+			platform/wiiu/ax_stubs
 
 	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/ogg-vorbis/libogg/src/*.c))
 	SOURCES	+=	$(patsubst %.c,%,$(wildcard framework/external/ogg-vorbis/libvorbis/lib/*.c))

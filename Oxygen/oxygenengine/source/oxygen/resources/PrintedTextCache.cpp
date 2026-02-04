@@ -8,6 +8,7 @@
 
 #include "oxygen/pch.h"
 #include "oxygen/resources/PrintedTextCache.h"
+#include "oxygen/platform/PlatformFunctions.h"
 
 
 PrintedTextCache::PrintedTextCache()
@@ -48,7 +49,7 @@ PrintedTextCache::CacheItem& PrintedTextCache::addCacheItem(const Key& key, Font
 
 void PrintedTextCache::regularCleanup()
 {
-	const uint32 currentTicks = SDL_GetTicks();
+	const uint32 currentTicks = (uint32)PlatformFunctions::getTicksMs();
 	if ((int32)(currentTicks - mNextCheckTicks) < 0)
 		return;
 

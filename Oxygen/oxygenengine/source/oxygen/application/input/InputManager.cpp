@@ -12,6 +12,7 @@
 #include "oxygen/application/overlays/TouchControlsOverlay.h"
 #include "oxygen/application/Configuration.h"
 #include "oxygen/menu/imgui/ImGuiIntegration.h"
+#include "oxygen/platform/PlatformFunctions.h"
 #include "oxygen/helper/Logging.h"
 #include "oxygen/rendering/utils/RenderUtils.h"
 #include "oxygen/simulation/LogDisplay.h"
@@ -444,7 +445,7 @@ void InputManager::updateInput(float timeElapsed)
 	}
 
 	// Update controller rumble
-	const uint32 currentTicks = SDL_GetTicks();
+	const uint32 currentTicks = (uint32)PlatformFunctions::getTicksMs();
 	for (int playerIndex = 0; playerIndex < (int)NUM_PLAYERS; ++playerIndex)
 	{
 		// Check if rumble intensity has changed - or if the player switched to a different input device
@@ -920,7 +921,7 @@ void InputManager::setControllerRumbleForPlayer(int playerIndex, float lowFreque
 {
 	if (playerIndex >= 0 && playerIndex < NUM_PLAYERS)
 	{
-		const uint32 endTicks = SDL_GetTicks() + milliseconds;
+		const uint32 endTicks = (uint32)(PlatformFunctions::getTicksMs() + milliseconds);
 		if (mPlayers[playerIndex].mRumbleEffectQueue.addEffect(lowFrequencyRumble, highFrequencyRumble, endTicks))
 		{
 			reapplyControllerRumble(playerIndex);

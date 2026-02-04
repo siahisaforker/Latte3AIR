@@ -300,7 +300,7 @@ void Simulation::update(float timeElapsed)
 
 	if (mFrameNumber < requiredFrameNumber)
 	{
-		const uint32 startTime = SDL_GetTicks();
+		const uint32 startTime = (uint32)PlatformFunctions::getTicksMs();
 		const uint32 limitTime = startTime + 200;
 
 		while (mFrameNumber < requiredFrameNumber)
@@ -311,7 +311,7 @@ void Simulation::update(float timeElapsed)
 				break;
 
 			// Time limit to prevent non-responding application
-			if (SDL_GetTicks() >= limitTime)
+			if (PlatformFunctions::getTicksMs() >= (double)limitTime)
 			{
 				// Reset target frame to an earlier frame, but still make sure we had any progress at all
 				mCurrentTargetFrame = std::max((double)mFrameNumber, oldTargetFrame);

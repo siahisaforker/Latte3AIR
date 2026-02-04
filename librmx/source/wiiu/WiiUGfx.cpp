@@ -62,11 +62,14 @@ namespace
 	{
 		OSScreenInit();
 
-		OSScreenGetScreenSizeEx(OS_SCREEN_TV, &gState.mTVWidth, &gState.mTVHeight);
-		OSScreenGetScreenSizeEx(OS_SCREEN_DRC, &gState.mDRCWidth, &gState.mDRCHeight);
+		// Older SDKs used OSScreenGetScreenSizeEx; use known default resolutions
+		gState.mTVWidth = 1280;
+		gState.mTVHeight = 720;
+		gState.mDRCWidth = 854;
+		gState.mDRCHeight = 480;
 
-		gState.mTVSize = OSScreenGetBufferSizeEx(OS_SCREEN_TV);
-		gState.mDRCSize = OSScreenGetBufferSizeEx(OS_SCREEN_DRC);
+		gState.mTVSize = OSScreenGetBufferSizeEx(SCREEN_TV);
+		gState.mDRCSize = OSScreenGetBufferSizeEx(SCREEN_DRC);
 
 		gState.mTVBuffer = memalign(0x100, gState.mTVSize);
 		gState.mDRCBuffer = memalign(0x100, gState.mDRCSize);
@@ -86,10 +89,10 @@ namespace
 			return false;
 		}
 
-		OSScreenSetBufferEx(OS_SCREEN_TV, gState.mTVBuffer);
-		OSScreenSetBufferEx(OS_SCREEN_DRC, gState.mDRCBuffer);
-		OSScreenEnableEx(OS_SCREEN_TV, 1);
-		OSScreenEnableEx(OS_SCREEN_DRC, 1);
+		OSScreenSetBufferEx(SCREEN_TV, gState.mTVBuffer);
+		OSScreenSetBufferEx(SCREEN_DRC, gState.mDRCBuffer);
+		OSScreenEnableEx(SCREEN_TV, 1);
+		OSScreenEnableEx(SCREEN_DRC, 1);
 
 		if (gState.mTVHeight > 0)
 		{
@@ -111,25 +114,29 @@ namespace
 			gState.mDRCStridePixels = gState.mDRCWidth;
 		}
 
-		OSScreenClearBufferEx(OS_SCREEN_TV, 0x00000000);
-		OSScreenClearBufferEx(OS_SCREEN_DRC, 0x00000000);
-		OSScreenFlipBuffersEx(OS_SCREEN_TV);
-		OSScreenFlipBuffersEx(OS_SCREEN_DRC);
+		OSScreenClearBufferEx(SCREEN_TV, 0x00000000);
+		OSScreenClearBufferEx(SCREEN_DRC, 0x00000000);
+		OSScreenFlipBuffersEx(SCREEN_TV);
+		OSScreenFlipBuffersEx(SCREEN_DRC);
 		return true;
 	}
 
 	bool initGX2()
 	{
 #if WIIU_HAS_WHB_GFX
-		WHBGfxInit();
+	WHBGfxInit();
 
-		OSScreenGetScreenSizeEx(OS_SCREEN_TV, &gState.mTVWidth, &gState.mTVHeight);
-		OSScreenGetScreenSizeEx(OS_SCREEN_DRC, &gState.mDRCWidth, &gState.mDRCHeight);
+	// WHB does not expose the same helpers in this SDK; use OSScreen defaults
+	gState.mTVWidth = 1280;
+	gState.mTVHeight = 720;
+	gState.mDRCWidth = 854;
+	gState.mDRCHeight = 480;
 
-		gState.mTVBuffer = WHBGfxGetTVBuffer();
-		gState.mDRCBuffer = WHBGfxGetDRCBuffer();
-		gState.mTVSize = WHBGfxGetTVBufferSize();
-		gState.mDRCSize = WHBGfxGetDRCBufferSize();
+	gState.mTVSize = OSScreenGetBufferSizeEx(SCREEN_TV);
+	gState.mDRCSize = OSScreenGetBufferSizeEx(SCREEN_DRC);
+
+	gState.mTVBuffer = memalign(0x100, gState.mTVSize);
+	gState.mDRCBuffer = memalign(0x100, gState.mDRCSize);
 
 		if (gState.mTVHeight > 0)
 		{
@@ -243,13 +250,14 @@ namespace rmx
 		{
 			WHBGfxBeginRender();
 			WHBGfxFinishRender();
-			WHBGfxSwapBuffers();
+			WHBGfxFinishRenderTV();
+			WHBGfxFinishRenderDRC();
 			return;
 		}
 #endif
 
-		OSScreenFlipBuffersEx(OS_SCREEN_TV);
-		OSScreenFlipBuffersEx(OS_SCREEN_DRC);
+		OSScreenFlipBuffersEx(SCREEN_TV);
+		OSScreenFlipBuffersEx(SCREEN_DRC);
 	}
 
 	bool WiiUGfx::isGX2Active()

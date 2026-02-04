@@ -7,6 +7,7 @@
 */
 
 #include "rmxmedia.h"
+#include "oxygen/platform/PlatformFunctions.h"
 
 
 namespace rmx
@@ -111,7 +112,7 @@ namespace rmx
 			job.mJobShouldBeRunning = false;
 			while (job.mJobState == JobBase::JobState::RUNNING)
 			{
-				SDL_Delay(1);
+				PlatformFunctions::preciseDelay(1.0);
 			}
 		}
 	}
@@ -149,11 +150,11 @@ namespace rmx
 			//  - to react to a delayed job, if there's no other jobs at the moment
 			uint32 timeoutMilliseconds = 100;
 			if (mNextDelayedJobTicks != 0xffffffff)
-			{
-				const uint32 currentTicks = SDL_GetTicks();
-				if (mNextDelayedJobTicks > currentTicks)
-					timeoutMilliseconds = mNextDelayedJobTicks - currentTicks;
-			}
+				{
+					const uint32 currentTicks = (uint32)PlatformFunctions::getTicksMs();
+					if (mNextDelayedJobTicks > currentTicks)
+						timeoutMilliseconds = mNextDelayedJobTicks - currentTicks;
+				}
 			SDL_CondWaitTimeout(mConditionVariable, mConditionLock, timeoutMilliseconds);
 			job = getNextJobInternal();
 		}
@@ -180,7 +181,7 @@ namespace rmx
 		// Select waiting job with highest priority
 		mNextDelayedJobTicks = 0xffffffff;	// This will get updated as well
 		JobBase* bestJob = nullptr;
-		const uint32 currentTicks = SDL_GetTicks();
+		const uint32 currentTicks = (uint32)PlatformFunctions::getTicksMs();
 		for (JobBase* job : mJobs)
 		{
 			if (job->mJobState == JobBase::JobState::WAITING)

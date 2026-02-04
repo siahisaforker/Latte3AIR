@@ -5,20 +5,44 @@
 #include <coreinit/time.h>
 #include <memory>
 #include <cstring>
+#include <unordered_map>
 
 namespace rmx {
+
+static std::unordered_map<OSThread*, WiiUThread*> gThreadMap;
+
+// wrapper entry that matches OSThreadEntryPointFn
+static int WiiUThread_wrapper_entry(int argc, const char** argv)
+{
+    OSThread* cur = OSGetCurrentThread();
+    auto it = gThreadMap.find(cur);
+    if (it != gThreadMap.end())
+    {
+        WiiUThread* thread = it->second;
+        if (thread)
+        {
+            thread->runThreadFunction();
+        }
+        gThreadMap.erase(it);
+    }
+    OSExitThread(0);
+    return 0;
+}
 
 // WiiUMutex implementation
 WiiUMutex::WiiUMutex() : mMutex(nullptr)
 {
-    mMutex = OSCreateMutex();
+    mMutex = new OSMutex();
+    std::memset(mMutex, 0, sizeof(OSMutex));
+    OSInitMutex(mMutex);
 }
 
 WiiUMutex::~WiiUMutex()
 {
     if (mMutex)
     {
-        OSDestroyMutex(mMutex);
+        delete mMutex;
+        mMutex = nullptr;
     }
 }
 
@@ -42,7 +66,7 @@ bool WiiUMutex::tryLock()
 {
     if (mMutex)
     {
-        return OSTryLockMutex(mMutex);
+        return OSTryLockMutex(mMutex) != 0;
     }
     return false;
 }
@@ -50,14 +74,17 @@ bool WiiUMutex::tryLock()
 // WiiUConditionVariable implementation
 WiiUConditionVariable::WiiUConditionVariable() : mCondition(nullptr)
 {
-    mCondition = OSCreateCondition();
+    mCondition = new OSCondition();
+    std::memset(mCondition, 0, sizeof(OSCondition));
+    OSInitCond(mCondition);
 }
 
 WiiUConditionVariable::~WiiUConditionVariable()
 {
     if (mCondition)
     {
-        OSDestroyCondition(mCondition);
+        delete mCondition;
+        mCondition = nullptr;
     }
 }
 
@@ -65,7 +92,7 @@ void WiiUConditionVariable::signal()
 {
     if (mCondition)
     {
-        OSSignalCondition(mCondition);
+        OSSignalCond(mCondition);
     }
 }
 
@@ -73,7 +100,7 @@ void WiiUConditionVariable::wait(WiiUMutex& mutex)
 {
     if (mCondition && mutex.getNativeMutex())
     {
-        OSWaitCondition(mCondition, mutex.getNativeMutex());
+        OSWaitCond(mCondition, mutex.getNativeMutex());
     }
 }
 
@@ -90,34 +117,34 @@ WiiUThread::~WiiUThread()
     }
 }
 
-void WiiUThread::threadEntryPoint(void* arg)
-{
-    WiiUThread* thread = static_cast<WiiUThread*>(arg);
-    if (thread && thread->mFunction)
-    {
-        thread->mFunction();
-    }
-}
-
 void WiiUThread::startInternal()
 {
     if (mThread)
-    {
         return; // Already started
-    }
-    
-    mThread = OSCreateThread(
-        threadEntryPoint,
-        this,
-        kDefaultStackSize,
-        kDefaultPriority,
-        nullptr
-    );
-    
-    if (mThread)
+
+    mThread = new OSThread();
+    std::memset(mThread, 0, sizeof(OSThread));
+
+    BOOL ok = OSCreateThread(mThread,
+                             &WiiUThread_wrapper_entry,
+                             0,
+                             nullptr,
+                             nullptr,
+                             static_cast<uint32_t>(kDefaultStackSize),
+                             kDefaultPriority,
+                             0);
+
+    if (ok)
     {
+        // record mapping from OSThread* to this wrapper
+        gThreadMap[mThread] = this;
         mJoinable = true;
         OSResumeThread(mThread);
+    }
+    else
+    {
+        delete mThread;
+        mThread = nullptr;
     }
 }
 
@@ -125,8 +152,10 @@ void WiiUThread::join()
 {
     if (mThread && mJoinable)
     {
-        OSJoinThread(mThread, nullptr);
-        OSDestroyThread(mThread);
+        int result = 0;
+        OSJoinThread(mThread, &result);
+        // thread has exited; clean up
+        delete mThread;
         mThread = nullptr;
         mJoinable = false;
     }
@@ -136,8 +165,7 @@ void WiiUThread::detach()
 {
     if (mThread)
     {
-        // Wii U doesn't have a direct detach equivalent
-        // We'll just mark it as non-joinable
+        OSDetachThread(mThread);
         mJoinable = false;
     }
 }
@@ -149,12 +177,18 @@ bool WiiUThread::joinable() const
 
 void WiiUThread::yield()
 {
-    OSThreadYield();
+    OSYieldThread();
 }
 
 void WiiUThread::sleep(uint32_t milliseconds)
 {
-    OSSleep(milliseconds * 1000000ULL); // Convert to nanoseconds
+    OSSleepTicks(OSMillisecondsToTicks(milliseconds));
+}
+
+void WiiUThread::runThreadFunction()
+{
+    if (mFunction)
+        mFunction();
 }
 
 } // namespace rmx

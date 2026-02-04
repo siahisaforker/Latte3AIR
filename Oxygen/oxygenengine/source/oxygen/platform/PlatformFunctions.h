@@ -41,6 +41,14 @@ public:
 	static void preciseDelay(double milliseconds);
 	static double getTimerGranularityMilliseconds();
 
+	// Text input helpers (platform abstraction over SDL text input)
+	static bool isTextInputActive();
+	static void startTextInput();
+	static void stopTextInput();
+
+	// Millisecond timer (replacement for SDL_GetTicks)
+	static uint32_t getTicksMs();
+
 	static void changeWorkingDirectory(std::wstring_view executableCallPath);
 
 	static void onEngineStartup();

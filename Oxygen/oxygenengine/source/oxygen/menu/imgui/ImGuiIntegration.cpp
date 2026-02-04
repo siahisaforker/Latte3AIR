@@ -17,6 +17,7 @@
 #include "imgui.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl2.h"
+#include "oxygen/platform/PlatformFunctions.h"
 
 
 namespace
@@ -60,6 +61,13 @@ void ImGuiIntegration::startup()
 
 	if (!mEnabled)
 		return;
+
+#if defined(PLATFORM_WIIU)
+	// ImGui and its SDL/OpenGL backends are not supported on Wii U; disable.
+	RMX_LOG_INFO("ImGui disabled on Wii U to avoid SDL/OpenGL calls");
+	mEnabled = false;
+	return;
+#endif
 
 	// We can choose between the OpenGL renderer and a custom software renderer as fallback
 	//  -> I also quickly tried out the SDLRenderer, but that didn't work correctly
@@ -124,7 +132,7 @@ void ImGuiIntegration::shutdown()
 
 	saveIniSettings();
 
-	SDL_StopTextInput();
+	PlatformFunctions::stopTextInput();
 
 	if (mUsingOpenGL)
 	{

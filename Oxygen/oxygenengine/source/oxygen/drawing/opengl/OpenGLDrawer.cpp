@@ -719,7 +719,11 @@ void OpenGLDrawer::performRendering(const DrawCollection& drawCollection)
 
 void OpenGLDrawer::presentScreen()
 {
+#if !defined(PLATFORM_WIIU)
 	SDL_GL_SwapWindow(mInternal.mOutputWindow);
+#else
+	// On Wii U, OpenGL path is disabled; present is handled by GX2/OSScreen paths.
+#endif
 }
 
 OpenGLDrawerResources& OpenGLDrawer::getResources()

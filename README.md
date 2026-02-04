@@ -122,6 +122,19 @@ make PLATFORM=WiiU -j8
 - `Failed to initialize graphics`: Check if GX2 is avalible (logging is avalible, check the logs to see if GX2 could initialize)
 - `Audio device error`: Verify sndcore2 is properly initialized
 
+### Wii U build notes (short)
+- Recommended environment: WSL + DevkitPro/WUT installed under `/opt/devkitpro`.
+- If you hit missing lib symbols during linking, install the ppc portlibs and add their path:
+  - `/opt/devkitpro/portlibs/ppc/lib`
+- During recent development the following minimal steps were required to get a working build:
+  - Install ppc portlibs (zlib/ogg/vorbis/theora) via `dkp-pacman`.
+  - Add `-L/opt/devkitpro/portlibs/ppc/lib` and `-lgcc` to the WiiU platform LIBS in `Oxygen/sonic3air/build/_make/Makefile_cfgs/Platforms/WiiU.cfg`.
+  - Provide small platform stubs for missing symbols (`platform/wiiu/atomic_stubs.cpp`, `platform/wiiu/ax_stubs.cpp`) when developing against WUT.
+  - Fix Makefile continuation if `make` fails with "recipe commences before first target" (missing backslash on a continued `SOURCES` list entry).
+  - Build from WSL: `cd Oxygen/sonic3air/build/_make && make -f Makefile PLATFORM=WiiU -j8`.
+
+Build artifact: `bin/WiiU/sonic3air.rpx` (produced by the build).
+
 ## Contributing
 
 ### Areas for Contribution

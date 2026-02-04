@@ -70,6 +70,8 @@ bool Texture::checkHandle() const
 		mHandle = 0;
 	}
 #endif
+
+#endif
 	return (mHandle != 0);
 }
 

@@ -5,6 +5,11 @@
 #include <algorithm>
 #include <cstring>
 
+// Accessors provided by `Oxygen/sonic3air/___internal/rom_data.h` via
+// `Oxygen/sonic3air/source/sonic3air/___internal/rom_data.cpp` when present.
+extern "C" const unsigned char* get_embedded_rom();
+extern "C" unsigned int get_embedded_rom_size();
+
 namespace rmx {
 
 bool WiiUROMLoader::mInitialized = false;
@@ -96,8 +101,19 @@ std::vector<uint8_t> WiiUROMLoader::loadROMData(const std::string& filePath)
         return romData;
 
     std::ifstream file(filePath, std::ios::binary | std::ios::ate);
-    if (!file.is_open())
+    if (!file.is_open()) {
+        // If the ROM file isn't available on disk, try embedded ROM data (if present).
+        unsigned int sz = get_embedded_rom_size();
+        if (sz > 0) {
+            const unsigned char* p = get_embedded_rom();
+            if (p) {
+                romData.assign(p, p + sz);
+                if (validateROM(romData))
+                    return romData;
+            }
+        }
         return romData;
+    }
 
     size_t fileSize = file.tellg();
     file.seekg(0, std::ios::beg);

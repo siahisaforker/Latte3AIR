@@ -15,6 +15,7 @@
 #include "oxygen/rendering/Geometry.h"
 #include "oxygen/rendering/RenderResources.h"
 #include "oxygen/rendering/opengl/OpenGLRenderer.h"
+#include "oxygen/platform/PlatformFunctions.h"
 #include "oxygen/rendering/software/SoftwareRenderer.h"
 #include "oxygen/rendering/parts/RenderParts.h"
 #include "oxygen/resources/FontCollection.h"
@@ -174,7 +175,7 @@ void VideoOut::postFrameUpdate()
 
 	// Signal for rendering
 	mFrameState = FrameState::FRAME_READY;
-	mLastFrameTicks = SDL_GetTicks();
+	mLastFrameTicks = (uint32)PlatformFunctions::getTicksMs();
 	mFrameInterpolation.mUseInterpolationLastUpdate = mFrameInterpolation.mUseInterpolationThisUpdate;
 	mFrameInterpolation.mUseInterpolationThisUpdate = true;		// Could be set differently, e.g. if we had a script binding to disable interpolation for an update
 	mDebugDrawRenderingRequested = false;
@@ -183,7 +184,7 @@ void VideoOut::postFrameUpdate()
 void VideoOut::initAfterSaveStateLoad()
 {
 	mFrameState = FrameState::FRAME_READY;
-	mLastFrameTicks = SDL_GetTicks();
+	mLastFrameTicks = (uint32)PlatformFunctions::getTicksMs();
 	mFrameInterpolation.mUseInterpolationThisUpdate = false;
 	mDebugDrawRenderingRequested = false;
 }

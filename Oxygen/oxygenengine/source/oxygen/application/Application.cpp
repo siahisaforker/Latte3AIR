@@ -154,15 +154,15 @@ void Application::beginFrame()
 		// Start or stop text input from SDL
 		//  -> The start call is required to even get any "textinput" callbacks
 		//  -> On devices that support it (like Android), active text input will also bring up the virtual keyboard
-		if (mRequestActiveTextInput != (bool)SDL_IsTextInputActive())
+		if (mRequestActiveTextInput != (bool)PlatformFunctions::isTextInputActive())
 		{
 			if (mRequestActiveTextInput)
 			{
-				SDL_StartTextInput();
+				PlatformFunctions::startTextInput();
 			}
 			else
 			{
-				SDL_StopTextInput();
+				PlatformFunctions::stopTextInput();
 			}
 		}
 
@@ -219,7 +219,7 @@ void Application::sdlEvent(const SDL_Event& ev)
 
 		case SDL_JOYDEVICEADDED:
 		{
-			if (SDL_GetTicks() > 5000)
+			if (PlatformFunctions::getTicksMs() > 5000)
 			{
 				LogDisplay::instance().setLogDisplay("New game controller found");
 				InputManager::instance().rescanRealDevices();
@@ -229,7 +229,7 @@ void Application::sdlEvent(const SDL_Event& ev)
 
 		case SDL_JOYDEVICEREMOVED:
 		{
-			if (SDL_GetTicks() > 5000)
+			if (PlatformFunctions::getTicksMs() > 5000)
 			{
 				LogDisplay::instance().setLogDisplay("Game controller was disconnected");
 				InputManager::instance().rescanRealDevices();
@@ -704,7 +704,7 @@ void Application::render()
 			double delay = tickLengthMilliseconds - Profiling::getRootRegion().mTimer.getAccumulatedSeconds() * 1000.0;
 			if (delay >= 1.0)
 			{
-				SDL_Delay(1);	// No precise timing should be needed here
+				PlatformFunctions::preciseDelay(1.0);	// No precise timing should be needed here
 			}
 		}
 

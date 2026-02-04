@@ -30,6 +30,7 @@ void rmxmedia::initialize()
 	rmx::ErrorHandling::mNativeWindowHandleProvider = []() { return FTX::Video->getNativeWindowHandle(); };
 
 	// Initialize audio load callbacks
+#if !defined(PLATFORM_WIIU)
 	AudioBuffer::LoadCallbackList callbacks;
 	callbacks.push_back(rmx::WavLoader::load);
 
@@ -41,6 +42,7 @@ void rmxmedia::initialize()
 			cblist.push_back(callback);
 		}
 	}
+#endif
 
 	// Initialize font factories
 	rmx::FontCodecList::mCodecs.add<FontSourceStdFactory>();

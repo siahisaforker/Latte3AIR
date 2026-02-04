@@ -39,6 +39,11 @@
 	#include "oxygen/platform/android/AndroidJavaInterface.h"
 #endif
 
+#if defined(PLATFORM_WIIU)
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 
 #if defined(PLATFORM_WINDOWS) || defined(PLATFORM_LINUX)
 	#define LOAD_APP_ICON_PNG
@@ -68,6 +73,8 @@ struct EngineMain::Internal
 void EngineMain::earlySetup()
 {
 	// This function contains stuff you would usually do right at the start of the "main" function
+
+// Filesystem mount checks are performed later in `PlatformFunctions::onEngineStartup()`
 
 	// Setup crash handling
 	CrashHandler::initializeCrashHandler();
@@ -637,7 +644,11 @@ bool EngineMain::createWindow()
 	Configuration& config = Configuration::instance();
 	const EngineDelegateInterface::AppMetaData& appMetaData = mDelegate.getAppMetaData();
 
-	const bool useOpenGL = (config.mRenderMethod == Configuration::RenderMethod::OPENGL_FULL) || (config.mRenderMethod == Configuration::RenderMethod::OPENGL_SOFT);
+	bool useOpenGL = (config.mRenderMethod == Configuration::RenderMethod::OPENGL_FULL) || (config.mRenderMethod == Configuration::RenderMethod::OPENGL_SOFT);
+#if defined(PLATFORM_WIIU)
+	// Wii U does not support OpenGL; ensure we never take the OpenGL path.
+	useOpenGL = false;
+#endif
 
 	// Setup video config
 	rmx::VideoConfig videoConfig(config.mWindowMode != Configuration::WindowMode::WINDOWED, config.mWindowSize.x, config.mWindowSize.y, appMetaData.mTitle.c_str());
@@ -751,6 +762,7 @@ bool EngineMain::createWindow()
 			}
 		}
 
+		#if !defined(PLATFORM_WIIU)
 		RMX_LOG_INFO("Creating window...");
 		mSDLWindow = SDL_CreateWindow(*videoConfig.mCaption, SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex), SDL_WINDOWPOS_CENTERED_DISPLAY(displayIndex), videoConfig.mWindowRect.width, videoConfig.mWindowRect.height, flags);
 		if (nullptr == mSDLWindow)
@@ -778,6 +790,11 @@ bool EngineMain::createWindow()
 				// TODO: In this case, the SDL window was created with SDL_WINDOW_OPENGL flag, but that does not seem to be a problem
 			}
 		}
+		#else
+		// On Wii U the SDL window / OpenGL context is handled by the platform-specific video manager; skip creating an SDL window here.
+		RMX_LOG_INFO("Skipping SDL_CreateWindow on PLATFORM_WIIU");
+		mSDLWindow = nullptr;
+		#endif
 	}
 
 	// Create drawer depending on render method

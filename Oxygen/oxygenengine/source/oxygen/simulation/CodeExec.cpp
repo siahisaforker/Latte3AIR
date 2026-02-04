@@ -642,7 +642,7 @@ void CodeExec::runScript(bool executeSingleFunction, CallFrameTracking* callFram
 
 	size_t stepsCounter = 0;
 	size_t nextCheckSteps = 0x40000;
-	const uint32 ticksStart = SDL_GetTicks();
+	const uint32 ticksStart = (uint32)PlatformFunctions::getTicksMs();
 
 	while (true)
 	{
@@ -714,7 +714,7 @@ void CodeExec::runScript(bool executeSingleFunction, CallFrameTracking* callFram
 			}
 
 			// Limit execution to 100 ms
-			if (SDL_GetTicks() - ticksStart >= 100 && !PlatformFunctions::isDebuggerPresent())
+			if ((PlatformFunctions::getTicksMs() - (double)ticksStart) >= 100.0 && !PlatformFunctions::isDebuggerPresent())
 			{
 				mExecutionState = ExecutionState::INTERRUPTED;
 				break;

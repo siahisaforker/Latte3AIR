@@ -348,6 +348,37 @@ void PlatformFunctions::onEngineStartup()
 	// Handle DPI scaling by Windows
 	SetProcessDPIAware();
 #endif
+
+#if defined(PLATFORM_WIIU)
+	RMX_LOG_INFO("PlatformFunctions::onEngineStartup: entered");
+	// Ensure the S3AIR root and subfolders on external SD are available for game data
+	try
+	{
+		const std::wstring externalRoot = L"/vol/external01/";
+		// If the external SD volume is mounted, create the S3AIR tree and use a file logger.
+		if (FTX::FileSystem->exists(externalRoot))
+		{
+			const std::wstring base = externalRoot + std::wstring(L"S3AIR/");
+			FTX::FileSystem->createDirectory(base);
+			FTX::FileSystem->createDirectory(base + L"roms/");
+			FTX::FileSystem->createDirectory(base + L"saves/");
+			FTX::FileSystem->createDirectory(base + L"mods/");
+			FTX::FileSystem->createDirectory(base + L"logs/");
+			FTX::FileSystem->createDirectory(base + L"config/");
+
+			rmx::Logging::addLogger(*new rmx::FileLogger(base + std::wstring(L"logs/debug.log"), true, false));
+			rmx::Logging::addLogger(*new rmx::StdCoutLogger(true));
+		}
+		else
+		{
+			// External SD not present (e.g. running in Cemu). Print friendly message and keep stdout logger.
+			rmx::Logging::addLogger(*new rmx::StdCoutLogger(true));
+			RMX_LOG_INFO("play on real hardware");
+			RMX_LOG_INFO("PlatformFunctions::onEngineStartup: external SD not present");
+		}
+	}
+	catch(...) {}
+#endif
 }
 
 void PlatformFunctions::setAppIcon(int iconResource)
@@ -386,6 +417,30 @@ std::wstring PlatformFunctions::getAppDataPath()
 	return mExAppDataPath;
 #endif
 	return L"";
+}
+
+bool PlatformFunctions::isTextInputActive()
+{
+	return false;
+}
+
+void PlatformFunctions::startTextInput()
+{
+	// No-op by default; platforms that support IME may override in platform-specific code
+}
+
+void PlatformFunctions::stopTextInput()
+{
+	// No-op by default
+}
+
+uint32_t PlatformFunctions::getTicksMs()
+{
+	using namespace std::chrono;
+	static const steady_clock::time_point sStart = steady_clock::now();
+	const steady_clock::time_point now = steady_clock::now();
+	const milliseconds ms = duration_cast<milliseconds>(now - sStart);
+	return static_cast<uint32_t>(ms.count());
 }
 
 std::wstring PlatformFunctions::tryGetSteamRomPath(const std::wstring& romName)

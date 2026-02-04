@@ -7,6 +7,7 @@
 */
 
 #include "rmxmedia.h"
+#include "oxygen/platform/PlatformFunctions.h"
 
 #if defined(PLATFORM_WINDOWS)
 	#pragma warning(disable: 4005)	// Macro redefinition of APIENTRY
@@ -166,7 +167,7 @@ namespace rmx
 	{
 		// Update timing
 		unsigned int oldTicks = mTicks;
-		mTicks = SDL_GetTicks();
+		mTicks = (uint32)PlatformFunctions::getTicksMs();
 		mTimeDifference = (float)(mTicks - oldTicks) * 0.001f;
 		mTotalTime += mTimeDifference;
 
@@ -231,7 +232,7 @@ namespace rmx
 	void SystemManager::run()
 	{
 		// Start
-		mTicks = SDL_GetTicks();
+		mTicks = (uint32)PlatformFunctions::getTicksMs();
 		mRunning = true;
 
 #ifdef PLATFORM_WEB
@@ -252,7 +253,9 @@ namespace rmx
 
 	void SystemManager::warpMouse(int x, int y)
 	{
+		#if !defined(PLATFORM_WIIU)
 		SDL_WarpMouseInWindow(FTX::Video->mMainWindow, x, y);
+		#endif
 		mInputContext.applyMousePos(x, y);
 	}
 

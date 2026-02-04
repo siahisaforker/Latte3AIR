@@ -13,6 +13,7 @@
 #include "sonic3air/platform/PlatformSpecifics.h"
 
 #include "oxygen/platform/PlatformFunctions.h"
+#include "oxygen/helper/Logging.h"
 
 
 // [Added for Switch platform] HJW: I know it's sloppy to put this here... it'll get moved afterwards
@@ -46,7 +47,9 @@ extern "C"
 
 int main(int argc, char** argv)
 {
+	RMX_LOG_INFO("main: start");
 	EngineMain::earlySetup();
+	RMX_LOG_INFO("main: after earlySetup");
 	PlatformSpecifics::platformStartup();
 
 	GameArgumentsReader arguments;
@@ -89,9 +92,11 @@ int main(int argc, char** argv)
 
 	try
 	{
+		RMX_LOG_INFO("main: before EngineMain construction");
 		// Create engine delegate and engine main instance
 		EngineDelegate myDelegate;
 		EngineMain myMain(myDelegate, arguments);
+		RMX_LOG_INFO("main: after EngineMain construction");
 
 		// Evaluate some more arguments
 		Configuration& config = Configuration::instance();

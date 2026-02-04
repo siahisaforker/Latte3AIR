@@ -2,6 +2,7 @@
 #include <coreinit/memory.h>
 #include <coreinit/systeminfo.h>
 #include <malloc.h>
+#include <cstring>
 
 namespace rmx {
 

@@ -48,6 +48,29 @@ make PLATFORM=WiiU -j8
 # - Missing headers: Ensure DEVKITPRO is set correctly
 # - Link errors: Check WUT installation
 # - Permission errors: Verify write permissions in build directory
+
+### Recent Wii U build tips
+- If the linker reports missing ogg/vorbis/zlib symbols, install the ppc portlibs:
+
+```bash
+sudo dkp-pacman -S ppc-zlib ppc-libogg ppc-libvorbis ppc-libtheora
+```
+
+- Ensure the WiiU platform config includes the ppc portlibs path and `-lgcc`. Edit:
+   `Oxygen/sonic3air/build/_make/Makefile_cfgs/Platforms/WiiU.cfg` to add:
+
+```
+LIBPATHS += -L$(DEVKITPRO)/portlibs/ppc/lib
+LIBS += -lvorbis -lvorbisfile -logg -ltheora -ltheoradec -lz -latomic -lgcc
+```
+
+- If `make` fails with "recipe commences before first target", check for a missing trailing backslash on continued `SOURCES` list entries in `Oxygen/sonic3air/build/_make/Makefile`.
+- When developing under Windows, run builds inside WSL for best compatibility (paths and toolchain).
+
+### Quick rebuild command (WSL)
+```bash
+wsl -e bash -lc "cd '/mnt/c/Users/josiah/Music/Sonic3AIR-WiiU/sonic3air/Oxygen/sonic3air/build/_make' && make -f Makefile PLATFORM=WiiU -j8"
+```
 ```
 
 ## Installation & File Structure
