@@ -13,6 +13,7 @@
 #include "oxygen_netcore/network/ConnectionManager.h"
 #include "oxygen_netcore/network/LagStopwatch.h"
 #include "oxygen_netcore/serverclient/ProtocolVersion.h"
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 #include "PrivatePackets.h"
 #include "Shared.h"
@@ -46,8 +47,9 @@ void Server::runServer()
 	const uint16 tcpPort = (config.mTCPPort == 0) ? TCP_SERVER_PORT : config.mTCPPort;
 
 	// Setup sockets
+	PlatformNetwork::startup();
 	UDPSocket udpSocket;
-	if (!udpSocket.bindToPort(udpPort, SERVER_PROTOCOL_FAMILY))
+	if (!PlatformNetwork::bindUDPSocket(udpSocket, udpPort, SERVER_PROTOCOL_FAMILY))
 		RMX_ERROR("UDP socket bind to port " << udpPort << " failed", return);
 	RMX_LOG_INFO("UDP socket bound to port " << udpPort);
 

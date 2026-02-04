@@ -13,6 +13,8 @@
 #include "oxygen_netcore/network/LowLevelPackets.h"
 #include "oxygen_netcore/network/NetConnection.h"
 #include "oxygen_netcore/network/internal/WebSocketWrapper.h"
+#include "oxygen_netcore/network/Sockets.h"
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 
 namespace
@@ -62,11 +64,14 @@ ConnectionManager::ConnectionManager(UDPSocket* udpSocket, TCPSocket* tcpListenS
 	mHighLevelProtocolVersionRange(highLevelProtocolVersionRange)
 {
 	mActiveConnections.reserve(16);
+	// Ensure network subsystem is initialized via platform adapter
+	PlatformNetwork::startup();
 }
 
 ConnectionManager::~ConnectionManager()
 {
 	terminateAllConnections();
+	PlatformNetwork::shutdown();
 }
 
 bool ConnectionManager::updateConnectionManager()

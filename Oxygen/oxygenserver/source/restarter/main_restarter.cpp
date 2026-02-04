@@ -22,6 +22,7 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #undef ERROR
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 
 void killServerProcess()
@@ -100,8 +101,9 @@ private:
 void Restarter::runRestarter()
 {
 	// Switch between UDP and TCP usage
+	PlatformNetwork::startup();
 	UDPSocket udpSocket;
-	if (!udpSocket.bindToAnyPort())
+	if (!PlatformNetwork::bindUDPSocketAny(udpSocket))
 		RMX_ERROR("Socket bind to any port failed", return);
 	ConnectionManager connectionManager(&udpSocket, nullptr, *this, network::HIGHLEVEL_PROTOCOL_VERSION_RANGE);
 	mConnectionManager = &connectionManager;

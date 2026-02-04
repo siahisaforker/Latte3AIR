@@ -14,6 +14,7 @@
 #include "oxygen/simulation/CodeExec.h"
 #include "oxygen/simulation/LogDisplay.h"
 #include "oxygen/simulation/Simulation.h"
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 
 bool CrowdControlClient::startConnection()
@@ -26,7 +27,7 @@ bool CrowdControlClient::startConnection()
 		mSetupDone = false;
 	}
 
-	Sockets::startupSockets();
+	PlatformNetwork::startup();
 
 	// Assume a locally running instance of the Crowd Control app
 	if (!mSocket.connectTo("127.0.0.1", 58430))

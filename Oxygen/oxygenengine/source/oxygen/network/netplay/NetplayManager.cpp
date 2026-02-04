@@ -12,6 +12,8 @@
 #include "oxygen/network/netplay/NetplayHost.h"
 #include "oxygen/network/EngineServerClient.h"
 
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
+
 #include "oxygen_netcore/serverclient/Packets.h"
 #include "oxygen_netcore/serverclient/ProtocolVersion.h"
 
@@ -183,12 +185,13 @@ bool NetplayManager::onReceivedPacket(ReceivedPacketEvaluation& evaluation)
 bool NetplayManager::restartConnection(bool asHost, uint16 hostPort)
 {
 	closeConnections();
-	Sockets::startupSockets();
+	// Use platform network startup (centralized) to allow Wii U overrides later
+	PlatformNetwork::startup();
 
 	const Sockets::ProtocolFamily protocolFamily = mUseIPv6 ? Sockets::ProtocolFamily::IPv6 : Sockets::ProtocolFamily::IPv4;
 	if (asHost && hostPort != 0)
 	{
-		if (!mUDPSocket.bindToPort(hostPort, protocolFamily))
+		if (!PlatformNetwork::bindUDPSocket(mUDPSocket, hostPort, protocolFamily))
 		{
 			RMX_ASSERT(false, "UDP socket bind to port " << hostPort << " failed");
 			return false;
@@ -196,7 +199,7 @@ bool NetplayManager::restartConnection(bool asHost, uint16 hostPort)
 	}
 	else
 	{
-		if (!mUDPSocket.bindToAnyPort(protocolFamily))
+		if (!PlatformNetwork::bindUDPSocketAny(mUDPSocket, protocolFamily))
 		{
 			RMX_ERROR("Socket bind to any port failed", );
 			return false;

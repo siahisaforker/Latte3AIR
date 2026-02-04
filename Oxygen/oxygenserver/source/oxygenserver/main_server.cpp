@@ -10,6 +10,7 @@
 #include "oxygenserver/server/Server.h"
 #include "oxygenserver/server/CrashHandler.h"
 #include "oxygenserver/Configuration.h"
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 
 #if defined(PLATFORM_WINDOWS)
@@ -140,11 +141,11 @@ int main(int argc, char** argv)
 	Configuration config;
 	config.loadConfiguration(L"config.json");
 
-	Sockets::startupSockets();
+	PlatformNetwork::startup();
 	{
 		Server server;
 		server.runServer();
 	}
-	Sockets::shutdownSockets();
+	PlatformNetwork::shutdown();
 	return 0;
 }

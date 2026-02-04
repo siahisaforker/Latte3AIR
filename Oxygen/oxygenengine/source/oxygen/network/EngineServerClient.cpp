@@ -11,6 +11,7 @@
 
 #include "oxygen_netcore/serverclient/NetplaySetupPackets.h"
 #include "oxygen_netcore/serverclient/ProtocolVersion.h"
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 
 EngineServerClient::SocketUsage EngineServerClient::getSocketUsage()
@@ -54,12 +55,12 @@ EngineServerClient::~EngineServerClient()
 bool EngineServerClient::setupClient(bool useIPv6)
 {
 	mUseIPv6 = useIPv6;
-	Sockets::startupSockets();
+	PlatformNetwork::startup();
 
 	if (getSocketUsage() == SocketUsage::UDP)
 	{
 		// Setup socket & connection manager
-		if (!mUDPSocket.bindToAnyPort(mUseIPv6 ? Sockets::ProtocolFamily::IPv6 : Sockets::ProtocolFamily::IPv4))
+		if (!PlatformNetwork::bindUDPSocketAny(mUDPSocket, mUseIPv6 ? Sockets::ProtocolFamily::IPv6 : Sockets::ProtocolFamily::IPv4))
 			RMX_ERROR("Socket bind to any port failed", return false);
 	}
 

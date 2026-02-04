@@ -19,6 +19,7 @@
 #include "Shared.h"
 
 #include <thread>
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 
 
 static const bool CLIENT_USE_IPv6 = false;
@@ -112,7 +113,8 @@ bool TestClient::runClient(RunMode runMode)
 	UDPSocket* udpSocketToUse = nullptr;
 	if (CLIENT_USE_UDP)
 	{
-		if (!udpSocket.bindToAnyPort(CLIENT_USE_IPv6 ? Sockets::ProtocolFamily::IPv6 : Sockets::ProtocolFamily::IPv4))
+		PlatformNetwork::startup();
+		if (!PlatformNetwork::bindUDPSocketAny(udpSocket, CLIENT_USE_IPv6 ? Sockets::ProtocolFamily::IPv6 : Sockets::ProtocolFamily::IPv4))
 			RMX_ERROR("Socket bind to any port failed", return false);
 		udpSocketToUse = &udpSocket;
 	}
