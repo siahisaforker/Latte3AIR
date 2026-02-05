@@ -206,6 +206,48 @@ Follow the platform section that matches your development environment. All platf
 
 If you encounter missing symbols during link, ensure `LIBPATHS` in `Oxygen/sonic3air/build/_make/Makefile_cfgs/Platforms/WiiU.cfg` includes `-L$(DEVKITPRO)/portlibs/ppc/lib` and that required `LIBS` include `-lvorbis -lvorbisfile -logg -ltheora -ltheoradec -lz -latomic -lgcc`.
 
+### Host distributions (common)
+
+This project is commonly built from these host environments; follow the DevkitPro/WUT installer for exact steps, and install the listed utilities via your package manager before installing DevkitPro:
+
+- Ubuntu / Debian (apt):
+
+  ```bash
+  sudo apt update
+  sudo apt install build-essential git curl python3 cmake pkg-config
+  ```
+
+- Fedora / CentOS / RHEL (dnf):
+
+  ```bash
+  sudo dnf install @development-tools git curl python3 cmake pkgconfig
+  ```
+
+- Arch / Manjaro (pacman):
+
+  ```bash
+  sudo pacman -Syu base-devel git curl python cmake pkgconf
+  ```
+
+- openSUSE (zypper):
+
+  ```bash
+  sudo zypper install -t pattern devel_basis git curl python3 cmake pkg-config
+  ```
+
+- macOS (Homebrew / VM):
+
+  ```bash
+  brew install git cmake python3 pkg-config
+  # Consider using a Linux VM or Docker for best compatibility with WUT
+  ```
+
+- Windows (WSL):
+
+  Install WSL2 + a Linux distro (Ubuntu recommended) and follow the Linux steps inside WSL. Building natively on Windows is not supported; use WSL instead.
+
+After installing the basic host packages, follow the DevkitPro/WUT installation guide to install `dkp-pacman`, `wut`, and the Wii U ppc portlibs, then build as described above.
+
 ## Legal
 
 This is a non-profit fan project. All Sonic characters and assets belong to SEGA. This project is not affiliated with SEGA or Sonic Team.
