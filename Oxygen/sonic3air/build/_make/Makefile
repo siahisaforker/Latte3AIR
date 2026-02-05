@@ -16,26 +16,34 @@ PROFILE		?= 0
 STRIP		?= strip
 BASEDIR		?= ../../../..
 
-# If a ROM binary is present in `Oxygen/sonic3air/___internal`, generate a C header
+# If a ROM binary is present in `Oxygen/sonic3air/game`, generate a C header
 # containing the ROM bytes so it can be embedded into the RPX at build time.
+# The build will copy the original ROM into `___internal` for header generation
+# and then remove the temporary copy to keep the original only in `game/`.
+ROM_SRC := $(BASEDIR)/game/Sonic_Knuckles_wSonic3.bin
 ROM_BIN := $(BASEDIR)/___internal/Sonic_Knuckles_wSonic3.bin
 ROM_HDR := $(BASEDIR)/___internal/rom_data.h
-ifneq ($(wildcard $(ROM_BIN)),)
-$(shell (python3 $(BASEDIR)/tools/bin2c.py $(ROM_BIN) $(ROM_HDR) || python $(BASEDIR)/tools/bin2c.py $(ROM_BIN) $(ROM_HDR)) >/dev/null 2>&1 || true)
+ifneq ($(wildcard $(ROM_SRC)),)
+$(shell mkdir -p $(BASEDIR)/___internal >/dev/null 2>&1 || true; cp "$(ROM_SRC)" "$(ROM_BIN)" >/dev/null 2>&1 || true; (python3 "$(BASEDIR)/tools/bin2c.py" "$(ROM_BIN)" "$(ROM_HDR)" || python "$(BASEDIR)/tools/bin2c.py" "$(ROM_BIN)" "$(ROM_HDR)") >/dev/null 2>&1 || true; rm -f "$(ROM_BIN)" >/dev/null 2>&1 || true)
+endif
+
+# Abort build early if original ROM is not present in `game/` (required to embed).
+ifeq ($(wildcard $(ROM_SRC)),)
+$(error Required ROM '$(ROM_SRC)' not found. Place Sonic_Knuckles_wSonic3.bin in the repo 'game/' directory before building.)
 endif
 
 .PHONY: embed-rom
 embed-rom:
 	@echo "Checking for embedded ROM: $(ROM_BIN)"
-	# If a ROM exists in `game`, copy it into `___internal` so the header is generated there.
+	# Copy the original ROM from `game/` into `___internal`, generate the header,
+	# then remove the temporary copy so the original stays in `game/` only.
 	@if [ -f "$(BASEDIR)/game/Sonic_Knuckles_wSonic3.bin" ]; then \
 		mkdir -p "$(BASEDIR)/___internal"; \
 		cp "$(BASEDIR)/game/Sonic_Knuckles_wSonic3.bin" "$(ROM_BIN)" && echo "Copied ROM to $(ROM_BIN)"; \
-	fi
-	@if [ -f "$(ROM_BIN)" ]; then \
 		( python3 "$(BASEDIR)/tools/bin2c.py" "$(ROM_BIN)" "$(ROM_HDR)" || python "$(BASEDIR)/tools/bin2c.py" "$(ROM_BIN)" "$(ROM_HDR)" ) && echo "Generated $(ROM_HDR)"; \
+		rm -f "$(ROM_BIN)" && echo "Removed temporary copy $(ROM_BIN)"; \
 	else \
-		echo "No ROM found at $(ROM_BIN), skipping."; \
+		echo "No ROM found at $(BASEDIR)/game/Sonic_Knuckles_wSonic3.bin, skipping."; \
 	fi
 
 CFLAGS		?= -std=c++17 -Wno-psabi
@@ -451,8 +459,11 @@ ifeq ($(PLATFORM),WiiU)
 	INCLUDES += -I$(BASEDIR)
 	SOURCES	+=	\
 			librmx/source/rmxmedia/framework/VideoManager_WiiU \
+			librmx/source/rmxmedia/framework/GX2Renderer \
+			librmx/source/rmxmedia/framework/wiiu_shim_gx2 \
 			librmx/source/rmxmedia/audiovideo/AudioManager_WiiU \
 			librmx/source/wiiu/SDL_shim \
+			librmx/source/wiiu/gl_compat \
 			librmx/source/wiiu/WiiUGfx \
 			librmx/source/wiiu/WiiUFileSystem \
 			librmx/source/wiiu/WiiUThreading \

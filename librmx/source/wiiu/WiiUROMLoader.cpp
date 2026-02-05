@@ -38,7 +38,26 @@ std::vector<WiiUROMLoader::ROMInfo> WiiUROMLoader::findAvailableROMs()
     
     if (!mInitialized)
         return roms;
+    // Prefer embedded ROM if present: do not enumerate SD/disk when embedded data exists.
+    unsigned int embeddedSize = get_embedded_rom_size();
+    if (embeddedSize > 0)
+    {
+        ROMInfo info;
+        info.filePath = std::string("<embedded>");
+        info.size = static_cast<size_t>(embeddedSize);
+        const unsigned char* p = get_embedded_rom();
+        if (p)
+        {
+            std::vector<uint8_t> buf(p, p + embeddedSize);
+            info.checksum = calculateChecksum(buf);
+            info.isValid = validateROM(buf);
+            if (info.isValid)
+                roms.push_back(info);
+        }
+        return roms;
+    }
 
+    // Fallback: check filesystem paths for ROMs (only used if no embedded ROM)
     std::string romPath = getDefaultROMPath();
     
     // Specific ROM name for this setup
@@ -100,18 +119,24 @@ std::vector<uint8_t> WiiUROMLoader::loadROMData(const std::string& filePath)
     if (!mInitialized)
         return romData;
 
+    // Prefer embedded ROM data when available (do not load from SD/disk).
+    unsigned int embeddedSize = get_embedded_rom_size();
+    if (embeddedSize > 0)
+    {
+        const unsigned char* p = get_embedded_rom();
+        if (p)
+        {
+            romData.assign(p, p + embeddedSize);
+            if (validateROM(romData))
+                return romData;
+            // If embedded ROM fails validation, fall through to attempt disk load as a last resort
+            romData.clear();
+        }
+    }
+
+    // If no embedded ROM or validation failed, attempt to load from disk as fallback
     std::ifstream file(filePath, std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        // If the ROM file isn't available on disk, try embedded ROM data (if present).
-        unsigned int sz = get_embedded_rom_size();
-        if (sz > 0) {
-            const unsigned char* p = get_embedded_rom();
-            if (p) {
-                romData.assign(p, p + sz);
-                if (validateROM(romData))
-                    return romData;
-            }
-        }
         return romData;
     }
 

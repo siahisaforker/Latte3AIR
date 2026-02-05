@@ -93,8 +93,9 @@
 	#define RMX_USE_GLES2
 
 #elif defined(PLATFORM_WIIU)
-	// No OpenGL on Wii U; rendering is handled via GX2/OSScreen.
-
+	// Wii U: provide a GL compatibility layer that maps common GL calls
+	// to either WHB/GX2 when available or a software fallback.
+	#include "wiiu/gl_compat.h"
 #else
 	#error Unsupported platform
 #endif

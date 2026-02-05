@@ -102,6 +102,22 @@ The port automatically tries to detect these locations:
 ## Troubleshooting
 
 ### Build Issues
+
+### Embedded ROM handling
+
+ - Place your original ROM `Sonic_Knuckles_wSonic3.bin` in `game/` (repo root: `game/Sonic_Knuckles_wSonic3.bin`).
+ - The Wii U Makefile will copy that file into `Oxygen/sonic3air/___internal/` during the build, run `tools/bin2c.py` to generate `Oxygen/sonic3air/___internal/rom_data.h`, and then remove the temporary copy. The original ROM in `game/` is left untouched.
+ - The generated header exposes `game_bin_data` and `game_bin_data_size` which the build will include; the runtime uses the embedded bytes in memory.
+ - Important: the build will be aborted if the ROM is not present in `game/`. You must provide the original `Sonic_Knuckles_wSonic3.bin` in the `game/` folder. the project will not/cannot run the game without it.
+ 
+ If you prefer to keep the header up-to-date manually, run the `embed-rom` target:
+
+```bash
+cd Oxygen/sonic3air/build/_make
+make embed-rom
+```
+
+This will copy `game/Sonic_Knuckles_wSonic3.bin` into `___internal`, generate `rom_data.h`, and delete the copied binary.
 ```bash
 # If build fails with missing headers:
 export DEVKITPRO=/opt/devkitpro

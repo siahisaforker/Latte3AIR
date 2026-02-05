@@ -2,6 +2,7 @@
 #include "wiiu/WiiUGfx.h"
 #include "wiiu/WiiUFileSystem.h"
 #include "wiiu/WiiUThreading.h"
+#include "wiiu/gl_compat.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -148,6 +149,8 @@ SDL_Window* SDL_CreateWindow(const char*, int, int, int w, int h, Uint32)
 	window->surface = nullptr;
 
 	rmx::WiiUGfx::initialize(w, h);
+	// Initialize GL compatibility layer backbuffer
+	wiiu_gl_initialize(w, h);
 	return window;
 }
 
@@ -164,6 +167,8 @@ void SDL_DestroyWindow(SDL_Window* window)
 		window->surface = nullptr;
 	}
 	delete window;
+	// Shutdown GL compatibility layer
+	wiiu_gl_shutdown();
 	rmx::WiiUGfx::shutdown();
 }
 
@@ -360,6 +365,8 @@ void SDL_GL_SetSwapInterval(int)
 
 void SDL_GL_SwapWindow(SDL_Window*)
 {
+	// Present via GL compatibility layer (which will call WiiUGfx::present)
+	wiiu_gl_present();
 }
 
 void* SDL_GL_GetCurrentContext()
