@@ -239,7 +239,7 @@ int main(int argc, char** argv)
 {
 	randomize();
 	rmx::Logging::addLogger(*new rmx::StdCoutLogger());
-	Sockets::startupSockets();
+	PlatformNetwork::startup();
 
 	bool success = false;
 	{
@@ -247,7 +247,7 @@ int main(int argc, char** argv)
 		success = client.runClient(TestClient::RunMode::CHECK_SERVER);
 	}
 
-	Sockets::shutdownSockets();
+	PlatformNetwork::shutdown();
 	const char* message = (success ? "Server check successful" : "Server check failed!");
 	RMX_LOG_INFO(message);
 	RMX_CHECK(success, "Server check failed!", );

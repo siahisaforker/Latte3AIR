@@ -232,11 +232,11 @@ void Restarter::updateClient(uint64 currentTimestamp)
 int main(int argc, char** argv)
 {
 	rmx::Logging::addLogger(*new rmx::StdCoutLogger(true));
-	Sockets::startupSockets();
+	PlatformNetwork::startup();
 	{
 		Restarter restarter;
 		restarter.runRestarter();
 	}
-	Sockets::shutdownSockets();
+	PlatformNetwork::shutdown();
 	return 0;
 }

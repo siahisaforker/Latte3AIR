@@ -32,6 +32,7 @@
 #include "oxygen/helper/Profiling.h"
 #include "oxygen/network/EngineServerClient.h"
 #include "oxygen/platform/PlatformFunctions.h"
+#include "oxygen_netcore/network/impl/PlatformNetwork.h"
 #include "oxygen/simulation/GameRecorder.h"
 #include "oxygen/simulation/LogDisplay.h"
 #include "oxygen/simulation/PersistentData.h"
@@ -79,7 +80,7 @@ Application::~Application()
 	delete mSaveStateMenu;
 	delete mSimulation;
 
-	Sockets::shutdownSockets();
+	PlatformNetwork::shutdown();
 }
 
 void Application::initialize()

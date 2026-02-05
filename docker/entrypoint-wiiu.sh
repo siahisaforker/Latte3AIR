@@ -4,7 +4,7 @@ set -euo pipefail
 echo "Wii U build container initialized."
 
 if command -v dkp-pacman >/dev/null 2>&1; then
-    echo "dkp-pacman detected. You can now install Wii U packages inside the container, for example:"
+    echo "dkp-pacman is installed. You can now install Wii U packages inside the container, for example:"
     echo "  sudo dkp-pacman -S wut ppc-zlib ppc-libogg ppc-libvorbis ppc-libtheora"
     echo "Mount the repository into /workspace and run the Makefile as usual."
 else
