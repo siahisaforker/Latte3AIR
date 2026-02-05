@@ -38,6 +38,51 @@ make PLATFORM=WiiU -j8
 # - Required libraries and resources
 ```
 
+### Building for Wii U (Platform-specific)
+
+All platforms require DevkitPro/WUT and the Wii U ppc portlibs (installable via `dkp-pacman`). Choose the section matching your host OS.
+
+- Linux
+
+   ```bash
+   # Install devkitpro and wut via the official instructions
+   sudo dkp-pacman -Syu
+   sudo dkp-pacman -S wut ppc-zlib ppc-libogg ppc-libvorbis ppc-libtheora
+
+   export DEVKITPRO=/opt/devkitpro
+   export DEVKITPPC=$DEVKITPRO/devkitPPC
+   export PATH="$DEVKITPPC/bin:$PATH"
+
+   cd Oxygen/sonic3air/build/_make
+   make -f Makefile PLATFORM=WiiU -j$(nproc)
+   ```
+
+- Windows (WSL)
+
+   ```powershell
+   # From PowerShell run the build inside WSL (Ubuntu recommended)
+   wsl -e bash -lc "cd '/mnt/c/Users/<you>/Music/Sonic3AIR-WiiU/sonic3air/Oxygen/sonic3air/build/_make' && make -f Makefile PLATFORM=WiiU -j1"
+   ```
+
+   Install DevkitPro/WUT and the ppc portlibs inside WSL exactly as on Linux.
+
+- macOS
+
+   The simplest reliable option is a lightweight Linux VM or Docker container with DevkitPro/WUT installed. If you prefer native macOS, follow DevkitPro's macOS instructions and ensure ppc portlibs are available.
+
+   ```bash
+   # Example when using a prepared Linux container or VM
+   cd Oxygen/sonic3air/build/_make
+   make -f Makefile PLATFORM=WiiU -j8
+   ```
+
+Linker tips: if you see missing ogg/vorbis/zlib symbols, add the portlibs lib path to `WiiU.cfg`:
+
+```
+LIBPATHS += -L$(DEVKITPRO)/portlibs/ppc/lib
+LIBS += -lvorbis -lvorbisfile -logg -ltheora -ltheoradec -lz -latomic -lgcc
+```
+
 ### Build Troubleshooting
 ```bash
 # Clean build if encountering issues

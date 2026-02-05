@@ -156,6 +156,56 @@ Build artifact: `bin/WiiU/sonic3air.rpx` (produced by the build).
 - **Setup Guide**: `SETUP_GUIDE.md` - Detailed setup instructions
 - **Build System**: `Oxygen/sonic3air/build/_make/` - Platform-specific build files
 
+## Building for Wii U (Platform-specific)
+
+Follow the platform section that matches your development environment. All platforms require a working DevkitPro/WUT installation and the Wii U portlibs (ppc) installed via `dkp-pacman`.
+
+- Linux
+
+  - Install DevkitPro and WUT following https://devkitpro.org
+  - Install Wii U portlibs:
+
+    ```bash
+    sudo dkp-pacman -Syu
+    sudo dkp-pacman -S wut ppc-zlib ppc-libogg ppc-libvorbis ppc-libtheora
+    ```
+
+  - Set environment variables and build from the repo root:
+
+    ```bash
+    export DEVKITPRO=/opt/devkitpro
+    export DEVKITPPC=$DEVKITPRO/devkitPPC
+    export PATH="$DEVKITPPC/bin:$PATH"
+
+    cd Oxygen/sonic3air/build/_make
+    make -f Makefile PLATFORM=WiiU -j$(nproc)
+    ```
+
+- Windows (WSL recommended)
+
+  - Install WSL 2 and a Linux distribution (Ubuntu recommended).
+  - Inside WSL install DevkitPro/WUT as in the Linux section.
+  - From Windows PowerShell you can invoke the WSL build command:
+
+    ```powershell
+    wsl -e bash -lc "cd '/mnt/c/Users/<you>/Music/Sonic3AIR-WiiU/sonic3air/Oxygen/sonic3air/build/_make' && make -f Makefile PLATFORM=WiiU -j1"
+    ```
+
+  - Note: building under native Windows (outside WSL) is not supported due to toolchain and path differences.
+
+- macOS
+
+  - The recommended approach on macOS is to use a Linux VM or a Docker container with DevkitPro/WUT installed, as official macOS packaging may be limited.
+  - Alternatively, follow the DevkitPro macOS instructions at https://devkitpro.org and ensure the ppc portlibs are available in your environment.
+  - Use the same make invocation inside the prepared environment:
+
+    ```bash
+    cd Oxygen/sonic3air/build/_make
+    make -f Makefile PLATFORM=WiiU -j8
+    ```
+
+If you encounter missing symbols during link, ensure `LIBPATHS` in `Oxygen/sonic3air/build/_make/Makefile_cfgs/Platforms/WiiU.cfg` includes `-L$(DEVKITPRO)/portlibs/ppc/lib` and that required `LIBS` include `-lvorbis -lvorbisfile -logg -ltheora -ltheoradec -lz -latomic -lgcc`.
+
 ## Legal
 
 This is a non-profit fan project. All Sonic characters and assets belong to SEGA. This project is not affiliated with SEGA or Sonic Team.
