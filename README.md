@@ -248,6 +248,31 @@ This project is commonly built from these host environments; follow the DevkitPr
 
 After installing the basic host packages, follow the DevkitPro/WUT installation guide to install `dkp-pacman`, `wut`, and the Wii U ppc portlibs, then build as described above.
 
+## Automation: Docker & WSL
+
+To simplify creating a reproducible build host we provide a minimal Dockerfile and a WSL helper script in this repository:
+
+- `docker/Dockerfile.wiiu` + `docker/entrypoint-wiiu.sh`: Ubuntu-based container with host build tools installed. The container does not automatically install DevkitPro; run the entrypoint and follow its instructions inside the container to install `dkp-pacman` and Wii U portlibs, then mount the repository and run the normal `make` invocation.
+
+- `scripts/setup_wsl_devkitpro.sh`: Helper script intended for WSL/Ubuntu that installs host prerequisites and, if `dkp-pacman` is already present, installs Wii U portlibs. If `dkp-pacman` is missing the script points you to the DevkitPro install docs.
+
+Example Docker usage:
+
+```bash
+docker build -t s3air-wiiu -f docker/Dockerfile.wiiu .
+docker run --rm -it -v "$(pwd):/workspace" s3air-wiiu
+# inside the container follow the entrypoint instructions to install devkitpro and run make
+```
+
+WSL helper (run inside WSL Ubuntu):
+
+```bash
+bash scripts/setup_wsl_devkitpro.sh
+# After installing devkitpro via the official instructions, run:
+# sudo dkp-pacman -S wut ppc-zlib ppc-libogg ppc-libvorbis ppc-libtheora
+```
+
+
 ## Legal
 
 This is a non-profit fan project. All Sonic characters and assets belong to SEGA. This project is not affiliated with SEGA or Sonic Team.

@@ -83,6 +83,28 @@ LIBPATHS += -L$(DEVKITPRO)/portlibs/ppc/lib
 LIBS += -lvorbis -lvorbisfile -logg -ltheora -ltheoradec -lz -latomic -lgcc
 ```
 
+### Automation: Docker & WSL helper
+
+This repository includes a small Dockerfile and a WSL setup helper to simplify creating a reproducible build host.
+
+- `docker/Dockerfile.wiiu` and `docker/entrypoint-wiiu.sh`: Ubuntu-based container with host build tools installed. The container does not auto-install DevkitPro; run the container and follow the entrypoint instructions to install `dkp-pacman` and Wii U portlibs, then mount the repository and run the normal make invocation.
+
+- `scripts/setup_wsl_devkitpro.sh`: Helper script for WSL/Ubuntu that installs host prerequisites and will install Wii U portlibs if `dkp-pacman` is already present. If `dkp-pacman` is missing the script points you to the DevkitPro documentation.
+
+Example Docker build/run (from repo root):
+
+```bash
+docker build -t s3air-wiiu -f docker/Dockerfile.wiiu .
+docker run --rm -it -v "$(pwd):/workspace" s3air-wiiu
+```
+
+Run the WSL helper inside WSL Ubuntu:
+
+```bash
+bash scripts/setup_wsl_devkitpro.sh
+```
+
+
 ### Build Troubleshooting
 ```bash
 # Clean build if encountering issues
