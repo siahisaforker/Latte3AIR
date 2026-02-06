@@ -126,7 +126,19 @@ namespace rmx
 			FTX::FileSystem->renameFile(filename, directory + name + L'.' + extension);
 		}
 
-		mFileHandle.open(filename, FILE_ACCESS_WRITE);
+        mFileHandle = new FileHandle();
+        mFileHandle->open(filename, FILE_ACCESS_WRITE);
+	}
+
+
+	FileLogger::~FileLogger()
+	{
+		if (mFileHandle)
+		{
+			mFileHandle->close();
+			delete mFileHandle;
+			mFileHandle = nullptr;
+		}
 	}
 
 	void FileLogger::log(LogLevel logLevel, const std::string& string)
@@ -134,13 +146,13 @@ namespace rmx
 		if (mAddTimestamp)
 		{
 			std::string timestampString = detail::getTimestampString();
-			mFileHandle.write(timestampString.c_str(), timestampString.length());
+			mFileHandle->write(timestampString.c_str(), timestampString.length());
 		}
 
 		// Write to file
-		mFileHandle.write(string.c_str(), string.length());
-		mFileHandle.write("\r\n", 2);
-		mFileHandle.flush();
+		mFileHandle->write(string.c_str(), string.length());
+		mFileHandle->write("\r\n", 2);
+		mFileHandle->flush();
 	}
 
 

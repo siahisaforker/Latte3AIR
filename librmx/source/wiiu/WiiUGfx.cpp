@@ -8,6 +8,8 @@
 #include <malloc.h>
 #include <cstring>
 
+#include "rmxbase/tools/Logging.h"
+
 #if defined(__has_include)
 	#if __has_include(<whb/gfx.h>)
 		#include <whb/gfx.h>
@@ -76,6 +78,7 @@ namespace
 
 		if (!gState.mTVBuffer || !gState.mDRCBuffer)
 		{
+			RMX_LOG_ERROR("initOSScreen: memalign failed (tvSize=" << gState.mTVSize << ", drcSize=" << gState.mDRCSize << ")");
 			if (gState.mTVBuffer)
 			{
 				free(gState.mTVBuffer);
@@ -88,6 +91,8 @@ namespace
 			}
 			return false;
 		}
+
+		RMX_LOG_INFO("initOSScreen: allocated TV/DRC buffers (tvSize=" << gState.mTVSize << ", drcSize=" << gState.mDRCSize << ")");
 
 		OSScreenSetBufferEx(SCREEN_TV, gState.mTVBuffer);
 		OSScreenSetBufferEx(SCREEN_DRC, gState.mDRCBuffer);
@@ -138,7 +143,20 @@ namespace
 	gState.mTVBuffer = memalign(0x100, gState.mTVSize);
 	gState.mDRCBuffer = memalign(0x100, gState.mDRCSize);
 
-		if (gState.mTVHeight > 0)
+			if (!gState.mTVBuffer || !gState.mDRCBuffer)
+			{
+				RMX_LOG_ERROR("initGX2: memalign failed (tvSize=" << gState.mTVSize << ", drcSize=" << gState.mDRCSize << ")");
+				WHBGfxShutdown();
+				if (gState.mTVBuffer) { free(gState.mTVBuffer); gState.mTVBuffer = nullptr; }
+				if (gState.mDRCBuffer) { free(gState.mDRCBuffer); gState.mDRCBuffer = nullptr; }
+				gState.mTVSize = 0;
+				gState.mDRCSize = 0;
+				return false;
+			}
+
+			RMX_LOG_INFO("initGX2: allocated TV/DRC buffers for GX2 (tvSize=" << gState.mTVSize << ", drcSize=" << gState.mDRCSize << ")");
+
+			if (gState.mTVHeight > 0)
 		{
 			const int stride = static_cast<int>(gState.mTVSize / (sizeof(uint32_t) * gState.mTVHeight));
 			gState.mTVStridePixels = (stride > 0) ? stride : gState.mTVWidth;

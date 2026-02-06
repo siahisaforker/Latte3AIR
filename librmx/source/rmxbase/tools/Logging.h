@@ -8,6 +8,15 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+#include <sstream>
+
+// Forward-declare FileHandle to avoid including FileHandle.h here (that header
+// depends on project-specific macros/types). Logging.cpp includes FileHandle.h
+// where necessary.
+class FileHandle;
+
 
 namespace rmx
 {
@@ -51,11 +60,12 @@ namespace rmx
 	class FileLogger final : public LoggerBase
 	{
 	public:
-		FileLogger(const std::wstring& filename, bool addTimestamp = false, bool renameExisting = false);
-		void log(LogLevel logLevel, const std::string& string) override;
+	FileLogger(const std::wstring& filename, bool addTimestamp = false, bool renameExisting = false);
+	~FileLogger();
+	void log(LogLevel logLevel, const std::string& string) override;
 
 	private:
-		FileHandle mFileHandle;
+	FileHandle* mFileHandle = nullptr;
 		bool mAddTimestamp = false;
 	};
 

@@ -4,6 +4,8 @@
 #include "wiiu/WiiUThreading.h"
 #include "wiiu/gl_compat.h"
 
+#include "rmxbase/tools/Logging.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -96,6 +98,7 @@ namespace
 
 int SDL_Init(Uint32)
 {
+	RMX_LOG_INFO("SDL_Init: initializing VPAD");
 	VPADInit();
 	return 0;
 }
@@ -148,9 +151,34 @@ SDL_Window* SDL_CreateWindow(const char*, int, int, int w, int h, Uint32)
 	window->id = gNextWindowId.fetch_add(1);
 	window->surface = nullptr;
 
-	rmx::WiiUGfx::initialize(w, h);
-	// Initialize GL compatibility layer backbuffer
-	wiiu_gl_initialize(w, h);
+	RMX_LOG_INFO("SDL_CreateWindow: creating window " << window->id << " size=" << w << "x" << h);
+	bool gfxOk = false;
+	try {
+		gfxOk = rmx::WiiUGfx::initialize(w, h);
+	} catch (...) {
+		RMX_LOG_ERROR("SDL_CreateWindow: WiiUGfx::initialize threw an exception");
+		gfxOk = false;
+	}
+
+	if (!gfxOk)
+	{
+		gLastError = "Failed to initialize WiiU graphics subsystem";
+		RMX_LOG_ERROR("SDL_CreateWindow: " << gLastError);
+		delete window;
+		return nullptr;
+	}
+
+	// Initialize GL compatibility layer backbuffer and validate
+	try {
+		wiiu_gl_initialize(w, h);
+	} catch (...) {
+		RMX_LOG_ERROR("SDL_CreateWindow: wiiu_gl_initialize threw an exception");
+		gLastError = "Failed to initialize GL compatibility layer";
+		rmx::WiiUGfx::shutdown();
+		delete window;
+		return nullptr;
+	}
+
 	return window;
 }
 
@@ -175,7 +203,10 @@ void SDL_DestroyWindow(SDL_Window* window)
 SDL_Surface* SDL_GetWindowSurface(SDL_Window* window)
 {
 	if (!window)
+	{
+		RMX_LOG_ERROR("SDL_GetWindowSurface: null window");
 		return nullptr;
+	}
 
 	if (!window->surface)
 	{
@@ -188,11 +219,17 @@ SDL_Surface* SDL_GetWindowSurface(SDL_Window* window)
 
 		const size_t size = static_cast<size_t>(surface->pitch) * static_cast<size_t>(surface->h);
 		surface->pixels = memalign(64, (size + 63) & ~static_cast<size_t>(63));
-		if (surface->pixels)
+		if (!surface->pixels)
 		{
-			std::memset(surface->pixels, 0, size);
+			RMX_LOG_ERROR("SDL_GetWindowSurface: failed to allocate surface pixels size=" << size);
+			delete surface->format;
+			delete surface;
+			return nullptr;
 		}
+
+		std::memset(surface->pixels, 0, size);
 		window->surface = surface;
+		RMX_LOG_INFO("SDL_GetWindowSurface: allocated surface for window " << window->id << " size=" << surface->w << "x" << surface->h << " pitch=" << surface->pitch);
 	}
 
 	return window->surface;
@@ -200,9 +237,28 @@ SDL_Surface* SDL_GetWindowSurface(SDL_Window* window)
 
 int SDL_UpdateWindowSurface(SDL_Window* window)
 {
-	if (!window || !window->surface || !window->surface->pixels)
+	if (!window)
+	{
+		RMX_LOG_ERROR("SDL_UpdateWindowSurface: null window");
 		return -1;
-	rmx::WiiUGfx::present(static_cast<const uint32_t*>(window->surface->pixels), window->surface->w, window->surface->h);
+	}
+	if (!window->surface || !window->surface->pixels)
+	{
+		RMX_LOG_ERROR("SDL_UpdateWindowSurface: window has no surface or pixels (id=" << window->id << ")");
+		return -1;
+	}
+
+	try {
+		// Ensure graphics subsystem is initialized before presenting
+		if (!rmx::WiiUGfx::isGX2Active() && !rmx::WiiUGfx::initialize(window->surface->w, window->surface->h))
+		{
+			RMX_LOG_WARNING("SDL_UpdateWindowSurface: WiiUGfx not initialized, attempting re-init");
+		}
+		rmx::WiiUGfx::present(static_cast<const uint32_t*>(window->surface->pixels), window->surface->w, window->surface->h);
+	} catch (...) {
+		RMX_LOG_ERROR("SDL_UpdateWindowSurface: exception during present for window " << window->id);
+		return -1;
+	}
 	return 0;
 }
 
@@ -597,8 +653,12 @@ SDL_AudioDeviceID SDL_OpenAudioDevice(const char*, int, const SDL_AudioSpec* des
 
 			{
 				device->mutex.lock();
-				if (device->spec.callback)
-					device->spec.callback(device->spec.userdata, buffer.data(), bufferSize);
+				try {
+					if (device->spec.callback)
+						device->spec.callback(device->spec.userdata, buffer.data(), bufferSize);
+				} catch (...) {
+					RMX_LOG_ERROR("SDL_OpenAudioDevice: audio callback threw an exception");
+				}
 				device->mutex.unlock();
 			}
 
@@ -702,6 +762,7 @@ Uint8* SDL_LoadWAV_RW(SDL_RWops* src, int freesrc, SDL_AudioSpec* spec, Uint8** 
 	char riff[4];
 	if (!readBytes(src, riff, 4) || std::memcmp(riff, "RIFF", 4) != 0)
 	{
+		RMX_LOG_WARNING("SDL_LoadWAV_RW: invalid WAV header or read failure");
 		if (freesrc) SDL_RWclose(src);
 		return nullptr;
 	}
@@ -772,7 +833,10 @@ Uint8* SDL_LoadWAV_RW(SDL_RWops* src, int freesrc, SDL_AudioSpec* spec, Uint8** 
 		SDL_RWclose(src);
 
 	if (audioFormat != 1 || dataChunk.empty() || numChannels == 0 || bitsPerSample == 0 || sampleRate == 0)
+	{
+		RMX_LOG_WARNING("SDL_LoadWAV_RW: unsupported WAV format or missing data (format=" << audioFormat << ", channels=" << numChannels << ", bits=" << bitsPerSample << ", rate=" << sampleRate << ")");
 		return nullptr;
+	}
 
 	// Convert to signed 16-bit samples
 	const Uint32 bytesPerSample = bitsPerSample / 8;
@@ -848,15 +912,19 @@ int SDL_ConvertAudio(SDL_AudioCVT* cvt)
 SDL_RWops* SDL_RWFromFile(const char* file, const char* mode)
 {
 	if (!rmx::WiiUFileSystem::initialize())
+	{
+		RMX_LOG_ERROR("SDL_RWFromFile: WiiUFileSystem failed to initialize");
 		return nullptr;
+	}
 
 	SDL_RWops* ops = new SDL_RWops();
-	
+    
 	// Convert the path to Wii U path
 	std::string wiiUPath = rmx::WiiUFileSystem::getWiiUPath(std::string(file));
 	ops->fp = std::fopen(wiiUPath.c_str(), mode);
 	if (!ops->fp)
 	{
+		RMX_LOG_WARNING("SDL_RWFromFile: failed to open file '" << wiiUPath << "' mode='" << mode << "'");
 		delete ops;
 		return nullptr;
 	}
