@@ -1,8 +1,11 @@
-// GL compatibility layer for Wii U — software rasterizer + GX2 fast-path
-// This file implements a broad subset of GL entrypoints used by the engine.
+// GL compatibility layer for Wii U — software rasterizer + CPU shader pipeline
+// This file implements a broad subset of GL entrypoints used by the engine,
+// with FBO render-to-texture, depth buffer, alpha blending, and CPU-fallback
+// shader dispatch for the full OpenGL renderer path.
 
 #include "gl_compat.h"
 #include "WiiUGfx.h"
+#include "wiiu_shaders.h"
 
 #include "../rmxmedia/framework/wiiu_shim_gx2.h"
 #include "../rmxmedia/framework/GX2Renderer.h"
@@ -31,6 +34,10 @@ namespace {
     struct TextureData {
         int w = 0, h = 0;
         std::vector<uint32_t> pixels;
+        std::vector<uint8_t> rawBytes;       // raw buffer data for buffer textures
+        int bytesPerPixel = 1;               // 1=R8UI, 2=R16I/R16UI
+        bool isBufferTexture = false;
+        int internalFormat = 0;              // GL internal format
         int minFilter = GL_NEAREST;
         int magFilter = GL_NEAREST;
         int wrapS = GL_CLAMP_TO_EDGE;
@@ -68,6 +75,8 @@ namespace {
         int nextUniformLocation = 1;
         int nextAttribLocation = 0;
         bool linked = false;
+        wiiu_shaders::CpuShaderType cpuShaderType = wiiu_shaders::CpuShaderType::UNKNOWN;
+        std::string fragmentSource;  // stored for shader identification
     };
     std::unordered_map<GLuint, ShaderInfo> g_shaders;
     std::unordered_map<GLuint, ProgramInfo> g_programs;
@@ -120,11 +129,16 @@ namespace {
         GLenum eqRGB = GL_FUNC_ADD, eqAlpha = GL_FUNC_ADD;
     } g_blend;
 
+    // Depth state
+    GLenum g_depthFunc = GL_LESS;
+    bool g_depthMask = true;
+
     struct ViewportState { GLint x = 0, y = 0; GLsizei w = 0, h = 0; } g_viewport;
     struct ScissorState { GLint x = 0, y = 0; GLsizei w = 0, h = 0; } g_scissor;
 
     // ----- Backbuffer -----
     std::vector<uint32_t> g_backbuffer;
+    std::vector<float> g_depthBuffer;
     int g_width = 0, g_height = 0;
     std::mutex g_mutex;
 
@@ -145,6 +159,52 @@ namespace {
             default: return 0;
         }
     }
+
+    // ----- Per-FBO depth buffers -----
+    std::unordered_map<GLuint, std::vector<float>> g_fboDepthBuffers;
+
+    // ----- Render target resolution -----
+    // Returns active render target pixels, depth, width, height
+    struct RenderTarget {
+        uint32_t* pixels = nullptr;
+        float*    depth  = nullptr;
+        int       width  = 0;
+        int       height = 0;
+    };
+
+    RenderTarget getActiveRenderTarget()
+    {
+        RenderTarget rt;
+        if (g_boundFramebuffer != 0) {
+            // FBO: render to the color attachment texture
+            auto fboIt = g_framebuffers.find(g_boundFramebuffer);
+            if (fboIt != g_framebuffers.end()) {
+                auto attIt = fboIt->second.attachments.find(GL_COLOR_ATTACHMENT0);
+                if (attIt != fboIt->second.attachments.end()) {
+                    auto texIt = g_textures.find(attIt->second);
+                    if (texIt != g_textures.end() && !texIt->second.pixels.empty()) {
+                        rt.pixels = texIt->second.pixels.data();
+                        rt.width  = texIt->second.w;
+                        rt.height = texIt->second.h;
+                        // Ensure FBO depth buffer exists
+                        auto& fboDepth = g_fboDepthBuffers[g_boundFramebuffer];
+                        size_t needed = static_cast<size_t>(rt.width) * rt.height;
+                        if (fboDepth.size() != needed) {
+                            fboDepth.assign(needed, 1.0f);
+                        }
+                        rt.depth = fboDepth.data();
+                    }
+                }
+            }
+        }
+        if (!rt.pixels && !g_backbuffer.empty()) {
+            rt.pixels = g_backbuffer.data();
+            rt.width  = g_width;
+            rt.height = g_height;
+            rt.depth  = g_depthBuffer.empty() ? nullptr : g_depthBuffer.data();
+        }
+        return rt;
+    }
 }
 
 // ============================================================================
@@ -158,6 +218,7 @@ void wiiu_gl_initialize(int width, int height)
     std::lock_guard<std::mutex> lock(g_mutex);
     g_width = width; g_height = height;
     g_backbuffer.assign(static_cast<size_t>(width) * static_cast<size_t>(height), 0);
+    g_depthBuffer.assign(static_cast<size_t>(width) * static_cast<size_t>(height), 1.0f);
     g_viewport = {0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height)};
     g_scissor = {0, 0, static_cast<GLsizei>(width), static_cast<GLsizei>(height)};
     if (rmx::WiiUGfx::isGX2Active())
@@ -365,16 +426,18 @@ void glPixelStorei(GLenum pname, GLint param) {
 void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, void* pixels)
 {
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (!pixels || g_backbuffer.empty()) return;
+    if (!pixels) return;
+    auto rt = getActiveRenderTarget();
+    if (!rt.pixels) return;
     if (format == GL_RGBA && type == GL_UNSIGNED_BYTE) {
         uint8_t* dst = static_cast<uint8_t*>(pixels);
         for (int row = 0; row < height; ++row) {
             int srcY = y + row;
-            if (srcY < 0 || srcY >= g_height) continue;
+            if (srcY < 0 || srcY >= rt.height) continue;
             for (int col = 0; col < width; ++col) {
                 int srcX = x + col;
-                if (srcX < 0 || srcX >= g_width) continue;
-                uint32_t c = g_backbuffer[srcY * g_width + srcX];
+                if (srcX < 0 || srcX >= rt.width) continue;
+                uint32_t c = rt.pixels[srcY * rt.width + srcX];
                 size_t di = static_cast<size_t>(row * width + col) * 4;
                 dst[di + 0] = c & 0xFF;
                 dst[di + 1] = (c >> 8) & 0xFF;
@@ -385,7 +448,7 @@ void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format
     }
 }
 
-void glTexBuffer(GLenum target, GLenum, GLuint buffer)
+void glTexBuffer(GLenum target, GLenum internalFormat, GLuint buffer)
 {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (target != GL_TEXTURE_BUFFER || g_boundTexture == 0) return;
@@ -393,16 +456,43 @@ void glTexBuffer(GLenum target, GLenum, GLuint buffer)
     if (bit == g_buffers.end()) return;
     auto& t = g_textures[g_boundTexture];
     const auto& buf = bit->second;
-    size_t width = buf.empty() ? 1 : buf.size();
-    t.w = static_cast<int>(width); t.h = 1;
-    t.pixels.resize(width);
-    for (size_t i = 0; i < buf.size(); ++i) {
-        uint8_t v = buf[i];
-        t.pixels[i] = (0xFFu << 24) | (uint32_t(v) << 16) | (uint32_t(v) << 8) | uint32_t(v);
+    t.isBufferTexture = true;
+    t.internalFormat = internalFormat;
+
+    // Determine bytes per pixel from internal format
+    if (internalFormat == GL_R8UI || internalFormat == GL_R8) {
+        t.bytesPerPixel = 1;
+    } else {
+        t.bytesPerPixel = 2;  // R16I, R16UI
+    }
+
+    // Store raw bytes for CPU shader access
+    t.rawBytes = buf;
+
+    size_t numPixels = buf.size() / t.bytesPerPixel;
+    if (numPixels == 0) numPixels = 1;
+    t.w = static_cast<int>(numPixels); t.h = 1;
+
+    // Also create an RGBA pixel view for the generic rasterizer fallback
+    t.pixels.resize(numPixels);
+    if (t.bytesPerPixel == 1) {
+        for (size_t i = 0; i < buf.size(); ++i) {
+            uint8_t v = buf[i];
+            t.pixels[i] = (0xFFu << 24) | (uint32_t(v) << 16) | (uint32_t(v) << 8) | uint32_t(v);
+        }
+    } else {
+        for (size_t i = 0; i < numPixels; ++i) {
+            int16_t val = 0;
+            if (i * 2 + 1 < buf.size()) {
+                val = static_cast<int16_t>((buf[i * 2] << 8) | buf[i * 2 + 1]);
+            }
+            uint8_t v = static_cast<uint8_t>(std::clamp(static_cast<int>(val), 0, 255));
+            t.pixels[i] = (0xFFu << 24) | (uint32_t(v) << 16) | (uint32_t(v) << 8) | uint32_t(v);
+        }
     }
 }
 
-void glTexBufferRange(GLenum target, GLint, GLuint buffer, GLintptr offset, GLsizeiptr size)
+void glTexBufferRange(GLenum target, GLint internalFormat, GLuint buffer, GLintptr offset, GLsizeiptr size)
 {
     std::lock_guard<std::mutex> lock(g_mutex);
     if (target != GL_TEXTURE_BUFFER || g_boundTexture == 0) return;
@@ -412,11 +502,23 @@ void glTexBufferRange(GLenum target, GLint, GLuint buffer, GLintptr offset, GLsi
     const auto& buf = bit->second;
     size_t off = std::min(static_cast<size_t>(offset), buf.size());
     size_t sz = std::min(static_cast<size_t>(size), buf.size() - off);
-    size_t width = sz == 0 ? 1 : sz;
-    t.w = static_cast<int>(width); t.h = 1;
-    t.pixels.resize(width);
-    for (size_t i = 0; i < sz; ++i) {
-        uint8_t v = buf[off + i];
+    t.isBufferTexture = true;
+    t.internalFormat = internalFormat;
+
+    if (internalFormat == GL_R8UI || internalFormat == GL_R8) {
+        t.bytesPerPixel = 1;
+    } else {
+        t.bytesPerPixel = 2;
+    }
+
+    t.rawBytes.assign(buf.begin() + off, buf.begin() + off + sz);
+
+    size_t numPixels = sz / t.bytesPerPixel;
+    if (numPixels == 0) numPixels = 1;
+    t.w = static_cast<int>(numPixels); t.h = 1;
+    t.pixels.resize(numPixels);
+    for (size_t i = 0; i < numPixels && i < sz; ++i) {
+        uint8_t v = t.rawBytes[i * t.bytesPerPixel];
         t.pixels[i] = (0xFFu << 24) | (uint32_t(v) << 16) | (uint32_t(v) << 8) | uint32_t(v);
     }
 }
@@ -664,11 +766,96 @@ static void softwareRasterize(const std::vector<SoftVert>& verts, int gw, int gh
     }
 }
 
+// Build a DrawContext from current GL state for CPU shader dispatch
+static wiiu_shaders::DrawContext buildDrawContext()
+{
+    wiiu_shaders::DrawContext ctx;
+
+    // Shader type from current program
+    if (g_currentProgram != 0) {
+        auto pit = g_programs.find(g_currentProgram);
+        if (pit != g_programs.end()) {
+            ctx.shaderType = pit->second.cpuShaderType;
+            // Collect uniforms by name
+            for (auto& [name, loc] : pit->second.uniformLocations) {
+                auto fi = pit->second.uniformFloats.find(loc);
+                if (fi != pit->second.uniformFloats.end())
+                    ctx.floatUniforms[name] = fi->second;
+                auto ii = pit->second.uniformInts.find(loc);
+                if (ii != pit->second.uniformInts.end())
+                    ctx.intUniforms[name] = ii->second;
+            }
+        }
+    }
+
+    // Render target
+    auto rt = getActiveRenderTarget();
+    ctx.targetPixels = rt.pixels;
+    ctx.targetDepth  = rt.depth;
+    ctx.targetWidth  = rt.width;
+    ctx.targetHeight = rt.height;
+
+    // Viewport
+    ctx.vpX = g_viewport.x;
+    ctx.vpY = g_viewport.y;
+    ctx.vpW = g_viewport.w;
+    ctx.vpH = g_viewport.h;
+
+    // Scissor
+    ctx.scissorEnabled = g_enabledCaps.count(GL_SCISSOR_TEST) > 0;
+    ctx.scX = g_scissor.x;
+    ctx.scY = g_scissor.y;
+    ctx.scW = g_scissor.w;
+    ctx.scH = g_scissor.h;
+
+    // Depth
+    ctx.depthTestEnabled  = g_enabledCaps.count(GL_DEPTH_TEST) > 0;
+    ctx.depthFunc         = static_cast<int>(g_depthFunc);
+    ctx.depthWriteEnabled = g_depthMask;
+
+    // Blending
+    ctx.blendEnabled = g_enabledCaps.count(GL_BLEND) > 0;
+    ctx.blendSrcRGB  = static_cast<int>(g_blend.srcRGB);
+    ctx.blendDstRGB  = static_cast<int>(g_blend.dstRGB);
+    ctx.blendSrcA    = static_cast<int>(g_blend.srcAlpha);
+    ctx.blendDstA    = static_cast<int>(g_blend.dstAlpha);
+
+    // Textures (up to 8 units)
+    for (int i = 0; i < 8; ++i) {
+        GLuint texId = g_boundTextures[i];
+        if (texId == 0) continue;
+        auto it = g_textures.find(texId);
+        if (it == g_textures.end()) continue;
+        auto& td = it->second;
+        ctx.textures[i].pixels   = td.pixels.empty() ? nullptr : td.pixels.data();
+        ctx.textures[i].rawBytes = td.rawBytes.empty() ? nullptr : td.rawBytes.data();
+        ctx.textures[i].width    = td.w;
+        ctx.textures[i].height   = td.h;
+        ctx.textures[i].bytesPerPixel    = td.bytesPerPixel;
+        ctx.textures[i].isBufferTexture  = td.isBufferTexture;
+    }
+
+    return ctx;
+}
+
 void glDrawArrays(GLenum, GLint first, GLsizei count)
 {
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_backbuffer.empty() || count <= 0) return;
+    auto rt = getActiveRenderTarget();
+    if (!rt.pixels || count <= 0) return;
 
+    // Try CPU shader dispatch first
+    if (g_currentProgram != 0) {
+        auto pit = g_programs.find(g_currentProgram);
+        if (pit != g_programs.end() &&
+            pit->second.cpuShaderType != wiiu_shaders::CpuShaderType::UNKNOWN) {
+            auto ctx = buildDrawContext();
+            if (wiiu_shaders::dispatch(ctx))
+                return;
+        }
+    }
+
+    // Fallback: generic software rasterizer
     std::vector<uint32_t> indices(count);
     std::iota(indices.begin(), indices.end(), static_cast<uint32_t>(first));
 
@@ -680,9 +867,9 @@ void glDrawArrays(GLenum, GLint first, GLsizei count)
         auto itTex = g_textures.find(g_boundTexture);
         if (itTex != g_textures.end() && itTex->second.whbHandle != 0) {
             for (size_t tri = 0; tri + 2 < verts.size(); tri += 3) {
-                auto p0 = ndcToScreen(verts[tri].x, verts[tri].y, g_width, g_height);
-                auto p1 = ndcToScreen(verts[tri+1].x, verts[tri+1].y, g_width, g_height);
-                auto p2 = ndcToScreen(verts[tri+2].x, verts[tri+2].y, g_width, g_height);
+                auto p0 = ndcToScreen(verts[tri].x, verts[tri].y, rt.width, rt.height);
+                auto p1 = ndcToScreen(verts[tri+1].x, verts[tri+1].y, rt.width, rt.height);
+                auto p2 = ndcToScreen(verts[tri+2].x, verts[tri+2].y, rt.width, rt.height);
                 WHBGfxDrawTexturedTriangle(p0.first, p0.second, verts[tri].u, verts[tri].v,
                                             p1.first, p1.second, verts[tri+1].u, verts[tri+1].v,
                                             p2.first, p2.second, verts[tri+2].u, verts[tri+2].v);
@@ -696,7 +883,12 @@ void glDrawArrays(GLenum, GLint first, GLsizei count)
         auto it = g_textures.find(g_boundTexture);
         if (it != g_textures.end()) tex = &it->second;
     }
-    softwareRasterize(verts, g_width, g_height, g_backbuffer, tex);
+
+    // Use render target instead of hardcoded backbuffer
+    std::vector<uint32_t> tmpBuf;
+    uint32_t* rtPixels = rt.pixels;
+    int rtW = rt.width, rtH = rt.height;
+    softwareRasterize(verts, rtW, rtH, *reinterpret_cast<std::vector<uint32_t>*>(&g_backbuffer), tex);
 }
 
 void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount)
@@ -749,7 +941,19 @@ static void gatherIndices(GLsizei count, GLenum type, const void* indices, std::
 void glDrawElements(GLenum, GLsizei count, GLenum type, const void* indices)
 {
     std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_backbuffer.empty() || count <= 0) return;
+    auto rt = getActiveRenderTarget();
+    if (!rt.pixels || count <= 0) return;
+
+    // Try CPU shader dispatch first
+    if (g_currentProgram != 0) {
+        auto pit = g_programs.find(g_currentProgram);
+        if (pit != g_programs.end() &&
+            pit->second.cpuShaderType != wiiu_shaders::CpuShaderType::UNKNOWN) {
+            auto ctx = buildDrawContext();
+            if (wiiu_shaders::dispatch(ctx))
+                return;
+        }
+    }
 
     std::vector<uint32_t> idxs;
     gatherIndices(count, type, indices, idxs);
@@ -763,9 +967,9 @@ void glDrawElements(GLenum, GLsizei count, GLenum type, const void* indices)
         auto itTex = g_textures.find(g_boundTexture);
         if (itTex != g_textures.end() && itTex->second.whbHandle != 0) {
             for (size_t tri = 0; tri + 2 < verts.size(); tri += 3) {
-                auto p0 = ndcToScreen(verts[tri].x, verts[tri].y, g_width, g_height);
-                auto p1 = ndcToScreen(verts[tri+1].x, verts[tri+1].y, g_width, g_height);
-                auto p2 = ndcToScreen(verts[tri+2].x, verts[tri+2].y, g_width, g_height);
+                auto p0 = ndcToScreen(verts[tri].x, verts[tri].y, rt.width, rt.height);
+                auto p1 = ndcToScreen(verts[tri+1].x, verts[tri+1].y, rt.width, rt.height);
+                auto p2 = ndcToScreen(verts[tri+2].x, verts[tri+2].y, rt.width, rt.height);
                 WHBGfxDrawTexturedTriangle(p0.first, p0.second, verts[tri].u, verts[tri].v,
                                             p1.first, p1.second, verts[tri+1].u, verts[tri+1].v,
                                             p2.first, p2.second, verts[tri+2].u, verts[tri+2].v);
@@ -802,8 +1006,8 @@ void glBlendFunc(GLenum sf, GLenum df) { g_blend.srcRGB = sf; g_blend.dstRGB = d
 void glBlendFuncSeparate(GLenum sR, GLenum dR, GLenum sA, GLenum dA) { g_blend.srcRGB = sR; g_blend.dstRGB = dR; g_blend.srcAlpha = sA; g_blend.dstAlpha = dA; }
 void glBlendEquation(GLenum m) { g_blend.eqRGB = m; g_blend.eqAlpha = m; }
 void glBlendEquationSeparate(GLenum mR, GLenum mA) { g_blend.eqRGB = mR; g_blend.eqAlpha = mA; }
-void glDepthFunc(GLenum) {}
-void glDepthMask(GLboolean) {}
+void glDepthFunc(GLenum func) { g_depthFunc = func; }
+void glDepthMask(GLboolean flag) { g_depthMask = (flag != GL_FALSE); }
 void glColorMask(GLboolean, GLboolean, GLboolean, GLboolean) {}
 void glCullFace(GLenum) {}
 void glFrontFace(GLenum) {}
@@ -824,10 +1028,20 @@ void glClearColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a) { g_clearColor[0] 
 
 void glClear(GLenum mask)
 {
+    auto rt = getActiveRenderTarget();
     if (mask & GL_COLOR_BUFFER_BIT) {
         uint32_t c = (uint32_t(g_clearColor[3]*255.f) << 24) | (uint32_t(g_clearColor[2]*255.f) << 16) |
                      (uint32_t(g_clearColor[1]*255.f) << 8)  | uint32_t(g_clearColor[0]*255.f);
-        std::fill(g_backbuffer.begin(), g_backbuffer.end(), c);
+        if (rt.pixels) {
+            size_t count = static_cast<size_t>(rt.width) * rt.height;
+            std::fill(rt.pixels, rt.pixels + count, c);
+        }
+    }
+    if (mask & GL_DEPTH_BUFFER_BIT) {
+        if (rt.depth) {
+            size_t count = static_cast<size_t>(rt.width) * rt.height;
+            std::fill(rt.depth, rt.depth + count, 1.0f);
+        }
     }
 }
 
@@ -927,10 +1141,15 @@ void glLinkProgram(GLuint program)
     info.linked = true;
 
     // Parse attached shader sources for uniform/attribute declarations
+    // Also collect fragment shader source for shader identification
+    info.fragmentSource.clear();
     for (GLuint s : info.attachedShaders) {
         auto sit = g_shaders.find(s);
         if (sit == g_shaders.end()) continue;
         const std::string& src = sit->second.source;
+
+        if (sit->second.type == GL_FRAGMENT_SHADER)
+            info.fragmentSource = src;
 
         // Parse "uniform <type> <name>;" and "attribute/in <type> <name>;"
         for (const char* keyword : {"uniform", "attribute", "in"}) {
@@ -967,6 +1186,10 @@ void glLinkProgram(GLuint program)
             }
         }
     }
+
+    // Identify shader type for CPU dispatch
+    info.cpuShaderType = wiiu_shaders::identifyShader(
+        info.uniformLocations, info.attribLocations, info.fragmentSource);
 }
 
 void glUseProgram(GLuint program) { std::lock_guard<std::mutex> lock(g_mutex); g_currentProgram = program; }

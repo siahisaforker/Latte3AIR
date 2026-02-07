@@ -4,7 +4,7 @@ This project aims to be native Wii U port of **Sonic 3 A.I.R.** (Angel Island Re
 
 ## Project Status
 
-**Current State: Core Port Complete — Runtime Testing Phase**
+**Current State: CPU Shader Pipeline Complete — Runtime Testing Phase**
 
 The Wii U port compiles cleanly to an RPX and all major engine subsystems have been implemented or adapted:
 
@@ -19,8 +19,8 @@ The Wii U port compiles cleanly to an RPX and all major engine subsystems have b
 - [x] ProcUI lifecycle — HOME button handling via WHBProcInit/IsRunning/Shutdown in SDL shim
 - [x] Networking — netplay disabled at compile time with clear guard; network init skipped on Wii U
 - [x] Performance instrumentation — `wiiu_perf` profiling helpers ready for runtime tuning
-- [ ] Full OpenGL renderer (shaders need GLSL→GX2 cross-compilation or CPU fallback)
-- [ ] GX2 fast-path expansion for advanced texture formats
+- [x] Full CPU shader pipeline — all 14 engine GLSL shaders reimplemented in C++ (`wiiu_shaders`)
+- [x] GX2 fast-path expansion — buffer textures, palette lookup, multi-texture, FBO render-to-texture
 - [ ] Runtime testing and performance optimization on real hardware
 
 ## Quick Start
@@ -76,9 +76,8 @@ The port automatically tries to detect these locations:
 - **OSScreen Renderer**: Fallback framebuffer renderer with text overlay support
 
 ### Remaining Work
-- **OpenGL Shaders**: GLSL→GX2 cross-compilation or CPU shader emulation for full renderer
-- **Advanced Texture Formats**: Buffer textures, paletted/compressed format expansion in GX2 path
-- **Performance Optimization**: Profile on real hardware; expand GX2 fast-paths to reduce CPU fallback usage
+- **Runtime Testing**: Test on real Wii U hardware or Cemu; validate all 14 CPU shader paths produce correct visuals
+- **Performance Optimization**: Profile on real hardware; identify hot shader paths and optimize pixel loops
 
   
 ## Technical Details
@@ -90,6 +89,7 @@ The port automatically tries to detect these locations:
   - `gl_compat.cpp/.h` - Broad OpenGL compatibility layer (textures, buffers, shaders, FBOs, draw calls)
   - `AudioManager.cpp` - Wii U audio implementation (inside `#if defined(PLATFORM_WIIU)` block)
   - `SDL_shim.cpp` - SDL compatibility layer with ProcUI lifecycle integration
+  - `wiiu_shaders.cpp/.h` - CPU shader pipeline (all 14 engine shaders: planes, sprites, post-FX, palette-indexed)
   - `WiiUGfx.cpp` - GX2/OSScreen abstraction with optimized blit
   - `WiiUAudio.h` - AX voice backend declarations
   - `WiiUFileSystem.cpp` - Path mapping to `/vol/external01/S3AIR/`
@@ -314,6 +314,6 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 
 ---
 
-**Note**: The core port is code-complete and builds cleanly to `bin/WiiU/sonic3air.rpx`. Remaining work is runtime testing, shader cross-compilation for the full OpenGL renderer, and performance tuning on real hardware. Some visual features may fall back to the software renderer until GX2 shader support is expanded.
+**Note**: The port is code-complete with a full CPU shader pipeline and builds cleanly to `bin/WiiU/sonic3air.rpx`. All 14 engine GLSL shaders have been reimplemented as C++ CPU shaders in `wiiu_shaders.cpp`. Remaining work is runtime testing and performance tuning on real hardware.
 
 **Note 2**: If the build crashes or shows unexpected behavior at runtime, check the logging output — it shows exactly what initializes as it happens. Test on Cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md).

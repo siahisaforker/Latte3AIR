@@ -463,6 +463,7 @@ ifeq ($(PLATFORM),WiiU)
 			librmx/source/rmxmedia/framework/wiiu_shim_gx2 \
 			librmx/source/wiiu/SDL_shim \
 			librmx/source/wiiu/gl_compat \
+			librmx/source/wiiu/wiiu_shaders \
 			librmx/source/wiiu/WiiUGfx \
 			librmx/source/wiiu/WiiUFileSystem \
 			librmx/source/wiiu/WiiUThreading \
