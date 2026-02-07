@@ -47,15 +47,43 @@ namespace
 		if (!src || !dst || sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0)
 			return;
 
+		// Optimised path: when source and dest are same size, use direct memcpy per row
+		if (sw == dw && sh == dh)
+		{
+			const size_t rowBytes = static_cast<size_t>(dw) * sizeof(uint32_t);
+			for (int y = 0; y < dh; ++y)
+			{
+				std::memcpy(dst + y * dstStridePixels, src + y * sw, rowBytes);
+			}
+			return;
+		}
+
+		// Pre-compute X lookup table to avoid per-pixel division
+		std::vector<int> xMap(dw);
+		for (int x = 0; x < dw; ++x)
+		{
+			xMap[x] = (x * sw) / dw;
+		}
+
 		for (int y = 0; y < dh; ++y)
 		{
 			const int sy = (y * sh) / dh;
 			const uint32_t* srcRow = src + sy * sw;
 			uint32_t* dstRow = dst + y * dstStridePixels;
-			for (int x = 0; x < dw; ++x)
+
+			// Process 4 pixels at a time when possible
+			int x = 0;
+			const int end4 = dw - 3;
+			for (; x < end4; x += 4)
 			{
-				const int sx = (x * sw) / dw;
-				dstRow[x] = srcRow[sx];
+				dstRow[x + 0] = srcRow[xMap[x + 0]];
+				dstRow[x + 1] = srcRow[xMap[x + 1]];
+				dstRow[x + 2] = srcRow[xMap[x + 2]];
+				dstRow[x + 3] = srcRow[xMap[x + 3]];
+			}
+			for (; x < dw; ++x)
+			{
+				dstRow[x] = srcRow[xMap[x]];
 			}
 		}
 	}
