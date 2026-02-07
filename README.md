@@ -52,7 +52,7 @@ The build produces:
 ### Paths
 The port automatically tries to detect these locations:
 
-`/vol/external01/S3AIR/roms/` — place your `Sonic_Knuckles_wSonic3.bin` here (only needed if not using the embedded ROM)
+`/vol/external01/S3AIR/data/` — place your `Sonic_Knuckles_wSonic3.bin` here (if not using embedded ROM), build the windows version and put audiodata.bin/enginedata.bin/gamedata.bin/metadata.json (rename to content.json)/scripts.bin
 
 `/vol/external01/S3AIR/saves/` — persistent save data is written here automatically
 
