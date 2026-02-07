@@ -461,7 +461,6 @@ ifeq ($(PLATFORM),WiiU)
 			librmx/source/rmxmedia/framework/VideoManager_WiiU \
 			librmx/source/rmxmedia/framework/GX2Renderer \
 			librmx/source/rmxmedia/framework/wiiu_shim_gx2 \
-			librmx/source/rmxmedia/audiovideo/AudioManager_WiiU \
 			librmx/source/wiiu/SDL_shim \
 			librmx/source/wiiu/gl_compat \
 			librmx/source/wiiu/WiiUGfx \

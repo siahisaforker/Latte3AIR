@@ -8,6 +8,11 @@
 
 #include "rmxmedia.h"
 
+#if defined(PLATFORM_WIIU)
+#include "wiiu/WiiUAudio.h"
+#include "wiiu/WiiUThreading.h"
+#endif
+
 
 namespace rmx
 {
@@ -503,5 +508,445 @@ namespace rmx
 
  
 #endif // !defined(PLATFORM_WIIU)
+
+
+// ============================================================================
+// Wii U AudioManager — bridges the rmx mixing hierarchy to WiiUAudioBackend
+// ============================================================================
+#if defined(PLATFORM_WIIU)
+
+	AudioManager::AudioManager() :
+		mRootMixer(*new AudioMixer(0))
+	{
+		mAudioMixers[0] = &mRootMixer;
+	}
+
+	AudioManager::~AudioManager()
+	{
+		exit();
+		for (const auto& [key, audioMixer] : mAudioMixers)
+			delete audioMixer;
+	}
+
+	void AudioManager::initialize(int sample_freq, int channels, int audioBufferSamples)
+	{
+		mFormat.freq = sample_freq;
+		mFormat.format = AUDIO_S16LSB;
+		mFormat.channels = (Uint8)channels;
+		mFormat.samples = (Uint16)audioBufferSamples;
+		mFormat.callback = nullptr;
+		mFormat.userdata = nullptr;
+
+		mInstances.clear();
+		mRootMixer.clearAudioInstances();
+
+		// Initialize AX backend
+		mWiiUAudio = new WiiUAudioBackend();
+		if (!mWiiUAudio->initialize(sample_freq, channels, audioBufferSamples))
+		{
+			RMX_LOG_INFO("WiiUAudioBackend::initialize failed, audio will be silent");
+			delete mWiiUAudio;
+			mWiiUAudio = nullptr;
+		}
+
+		// Start mixing thread
+		mAudioThreadRunning = true;
+		mAudioPlaying = true;
+		mAudioThread = new rmx::WiiUThread();
+		mAudioThread->start([this]()
+		{
+			const int bytesPerSample = 2;
+			const int bufferBytes = mFormat.samples * mFormat.channels * bytesPerSample;
+			std::vector<uint8_t> mixBuffer(bufferBytes, 0);
+
+			while (mAudioThreadRunning)
+			{
+				if (!mAudioPlaying)
+				{
+					rmx::WiiUThread::sleep(1);
+					continue;
+				}
+
+				// Mix audio
+				{
+					mAudioMutex.lock();
+					mixAudio(mixBuffer.data(), bufferBytes);
+					mAudioMutex.unlock();
+				}
+
+				// Output to AX hardware
+				if (mWiiUAudio)
+				{
+					mWiiUAudio->outputAudio(mixBuffer.data(), bufferBytes);
+				}
+
+				// Sleep for approximately the right amount of time
+				const double seconds = static_cast<double>(mFormat.samples) / static_cast<double>(mFormat.freq);
+				const auto sleepMs = static_cast<uint32_t>(seconds * 1000.0);
+				if (sleepMs > 0)
+					rmx::WiiUThread::sleep(sleepMs);
+			}
+		});
+
+		mPlayedSamples = 0;
+	}
+
+	void AudioManager::exit()
+	{
+		mAudioThreadRunning = false;
+		if (mAudioThread)
+		{
+			if (mAudioThread->joinable())
+				mAudioThread->join();
+			delete mAudioThread;
+			mAudioThread = nullptr;
+		}
+		if (mWiiUAudio)
+		{
+			mWiiUAudio->shutdown();
+			delete mWiiUAudio;
+			mWiiUAudio = nullptr;
+		}
+	}
+
+	void AudioManager::clear()
+	{
+		if (!mInstances.empty())
+		{
+			lockAudio();
+			for (const auto& [key, audioMixer] : mAudioMixers)
+				audioMixer->clearAudioInstances();
+			unlockAudio();
+			mInstances.clear();
+			++mChangeCounter;
+		}
+	}
+
+	void AudioManager::playAudio(bool onoff)
+	{
+		mAudioPlaying = onoff;
+	}
+
+	bool AudioManager::getAudioState()
+	{
+		return mAudioPlaying;
+	}
+
+	void AudioManager::lockAudio()
+	{
+		if (mAudioLocks == 0)
+			mAudioMutex.lock();
+		++mAudioLocks;
+	}
+
+	void AudioManager::unlockAudio()
+	{
+		RMX_ASSERT(mAudioLocks > 0, "Called 'AudioManager::unlockAudio' without locking");
+		--mAudioLocks;
+		if (mAudioLocks == 0)
+			mAudioMutex.unlock();
+	}
+
+	void AudioManager::regularUpdate(float deltaSeconds)
+	{
+		mTimeSinceLastUpdate += deltaSeconds;
+		if (mTimeSinceLastUpdate >= 0.5f)
+		{
+			mTimeSinceLastUpdate = 0.0f;
+			lockAudio();
+			static std::vector<std::pair<AudioBuffer*, int>> audioBufferPurgePositions;
+			audioBufferPurgePositions.clear();
+			for (const auto& instancePair : mInstances)
+			{
+				const AudioInstance& instance = instancePair.second;
+				AudioBuffer* audioBuffer = instance.mAudioBuffer;
+				if (nullptr != audioBuffer && !audioBuffer->isPersistent())
+				{
+					bool found = false;
+					for (auto& bufferPair : audioBufferPurgePositions)
+					{
+						if (bufferPair.first == audioBuffer)
+						{
+							bufferPair.second = std::min(bufferPair.second, instance.mPosition);
+							found = true;
+							break;
+						}
+					}
+					if (!found)
+						audioBufferPurgePositions.emplace_back(audioBuffer, instance.mPosition);
+				}
+			}
+			for (auto& bufferPair : audioBufferPurgePositions)
+			{
+				AudioBuffer* audioBuffer = bufferPair.first;
+				audioBuffer->lock();
+				audioBuffer->markPurgeableSamples(bufferPair.second);
+				audioBuffer->unlock();
+			}
+			unlockAudio();
+		}
+	}
+
+	void AudioManager::setGlobalVolume(float volume)
+	{
+		mRootMixer.setVolume(volume);
+		if (mWiiUAudio)
+			mWiiUAudio->setVolume(volume);
+	}
+
+	AudioMixer* AudioManager::getAudioMixerByID(int mixerId) const
+	{
+		const auto it = mAudioMixers.find(mixerId);
+		return (it == mAudioMixers.end()) ? nullptr : it->second;
+	}
+
+	void AudioManager::deleteAudioMixerByID(int mixerId)
+	{
+		RMX_ASSERT(mixerId != 0, "Can't delete root audio mixer (with ID 0)");
+		mAudioMixers.erase(mixerId);
+	}
+
+	float AudioManager::getAudioMixerVolumeByID(int mixerId) const
+	{
+		const AudioMixer* audioMixer = getAudioMixerByID(mixerId);
+		return (nullptr != audioMixer) ? audioMixer->getVolume() : 0.0f;
+	}
+
+	void AudioManager::setAudioMixerVolumeByID(int mixerId, float relativeVolume)
+	{
+		AudioMixer* audioMixer = getAudioMixerByID(mixerId);
+		if (nullptr != audioMixer)
+			audioMixer->setVolume(relativeVolume);
+	}
+
+	bool AudioManager::addSound(const PlaybackOptions& playbackOptions, AudioReference& ref)
+	{
+		if (nullptr == playbackOptions.mAudioBuffer)
+			return false;
+
+		AudioMixer* audioMixer = getAudioMixerByID(playbackOptions.mAudioMixerId);
+		if (nullptr == audioMixer)
+			return false;
+
+		AudioInstance& instance = mInstances[mNextFreeID];
+		instance.mID = mNextFreeID;
+		instance.mAudioBuffer = playbackOptions.mAudioBuffer;
+		instance.mAudioMixer = audioMixer;
+		instance.mVolume = playbackOptions.mVolume;
+		instance.mVolumeChange = playbackOptions.mVolumeChange;
+		instance.mSpeed = playbackOptions.mSpeed;
+		instance.mPosition = roundToInt(playbackOptions.mPosition * (float)playbackOptions.mAudioBuffer->getFrequency());
+		instance.mLoop = playbackOptions.mLoop;
+		instance.mStreaming = playbackOptions.mStreaming;
+		instance.mPaused = playbackOptions.mStartPaused;
+
+		lockAudio();
+		audioMixer->addAudioInstance(instance);
+		unlockAudio();
+
+		++mChangeCounter;
+		++mNextFreeID;
+
+		ref.setInstanceID(instance.mID);
+		return (instance.mID != 0);
+	}
+
+	int AudioManager::addSound(AudioBuffer* audiobuffer, bool streaming)
+	{
+		PlaybackOptions playbackOptions;
+		playbackOptions.mAudioBuffer = audiobuffer;
+		playbackOptions.mStreaming = streaming;
+		AudioReference ref;
+		addSound(playbackOptions, ref);
+		return ref.getInstanceID();
+	}
+
+	bool AudioManager::addSound(AudioBuffer* audiobuffer, AudioReference& ref, bool streaming)
+	{
+		PlaybackOptions playbackOptions;
+		playbackOptions.mAudioBuffer = audiobuffer;
+		playbackOptions.mStreaming = streaming;
+		return addSound(playbackOptions, ref);
+	}
+
+	void AudioManager::removeSound(AudioReference& ref)
+	{
+		if (ref.valid())
+			removeInstance(ref.getInstanceID());
+	}
+
+	void AudioManager::removeAllSounds()
+	{
+		clear();
+	}
+
+	AudioManager::AudioInstance* AudioManager::findInstance(int ID)
+	{
+		if (ID <= 0 || ID >= mNextFreeID)
+			return nullptr;
+		processRemoveIDs();
+		const auto it = mInstances.find(ID);
+		return (it == mInstances.end()) ? nullptr : &it->second;
+	}
+
+	void AudioManager::removeInstance(int ID)
+	{
+		assert(ID > 0 && ID < mNextFreeID);
+		const auto it = mInstances.find(ID);
+		if (it != mInstances.end())
+		{
+			AudioInstance& audioInstance = it->second;
+			if (nullptr != audioInstance.mAudioMixer)
+			{
+				lockAudio();
+				audioInstance.mAudioMixer->removeAudioInstance(audioInstance);
+				unlockAudio();
+			}
+			mInstances.erase(it);
+			++mChangeCounter;
+		}
+	}
+
+	void AudioManager::processRemoveIDs()
+	{
+		if (!mRemoveIDs.empty())
+		{
+			lockAudio();
+			for (int ID : mRemoveIDs)
+			{
+				const auto it = mInstances.find(ID);
+				if (it != mInstances.end())
+				{
+					AudioInstance& audioInstance = it->second;
+					if (nullptr != audioInstance.mAudioMixer)
+						audioInstance.mAudioMixer->removeAudioInstance(audioInstance);
+				}
+			}
+			unlockAudio();
+			for (int ID : mRemoveIDs)
+				mInstances.erase(ID);
+			mRemoveIDs.clear();
+			++mChangeCounter;
+		}
+	}
+
+	void AudioManager::registerAudioMixer(AudioMixer& audioMixer, int parentMixerId)
+	{
+		const auto it = mAudioMixers.find(audioMixer.mMixerId);
+		if (it != mAudioMixers.end() && it->second != &audioMixer)
+		{
+			AudioMixer* oldMixer = it->second;
+			::std::swap(audioMixer.mParent, oldMixer->mParent);
+			for (AudioMixer*& child : audioMixer.mParent->mChildren)
+			{
+				if (child == oldMixer)
+					child = &audioMixer;
+			}
+			::std::swap(audioMixer.mChildren, oldMixer->mChildren);
+			for (AudioMixer* child : audioMixer.mChildren)
+				child->mParent = &audioMixer;
+			delete oldMixer;
+		}
+		mAudioMixers[audioMixer.mMixerId] = &audioMixer;
+		AudioMixer* parent = getAudioMixerByID(parentMixerId);
+		if (nullptr == parent)
+			parent = &mRootMixer;
+		parent->addChild(audioMixer);
+	}
+
+	void AudioManager::mixAudio(uint8* outputStream, int outputBytes)
+	{
+		const size_t outputSamples = outputBytes / (mFormat.channels * sizeof(short));
+		const constexpr size_t MAX_SAMPLES = 2048;
+
+		RMX_ASSERT(outputSamples <= MAX_SAMPLES, "Mixing more than " << MAX_SAMPLES << " samples at once is not supported");
+		RMX_ASSERT(mFormat.channels <= 2, "More than 2 channels is not supported");
+
+		static int32 fullOutputBuffer[MAX_SAMPLES * 2];
+		memset(fullOutputBuffer, 0, sizeof(fullOutputBuffer));
+
+		AudioMixer::MixerParameters parameters;
+		parameters.mOutputBuffers[0] = &fullOutputBuffer[0];
+		parameters.mOutputBuffers[1] = &fullOutputBuffer[outputSamples];
+		parameters.mOutputSamples = outputSamples;
+		parameters.mOutputFormat = &mFormat;
+		parameters.mAccumulatedVolume = 1.0f;
+		mRootMixer.performAudioMix(parameters);
+
+		for (int channelIndex = 0; channelIndex < mFormat.channels; ++channelIndex)
+		{
+			const int32* RESTRICT src = parameters.mOutputBuffers[channelIndex];
+			short* dst = ((short*)outputStream) + channelIndex;
+
+			for (size_t i = 0; i < outputSamples; ++i)
+			{
+				if (*src >= 0x800000)
+					*dst = 0x7fff;
+				else if (*src < -0x800000)
+					*dst = -0x8000;
+				else
+					*dst = (*src >> 8);
+				++src;
+				dst += 2;
+			}
+		}
+
+		mPlayedSamples += (uint32)outputSamples;
+
+		for (auto& [key, audioInstance] : mInstances)
+		{
+			if (audioInstance.mPlaybackDone)
+			{
+				if (!containsElement(mRemoveIDs, key))
+					mRemoveIDs.push_back(key);
+				++mChangeCounter;
+			}
+		}
+	}
+
+	// WAV loader — use simple raw loading on Wii U since SDL_LoadWAV shim is limited
+	bool WavLoader::load(AudioBuffer* buffer, const String& source, const String& params)
+	{
+		if (nullptr == buffer || source.empty())
+			return false;
+		if (!source.endsWith(".wav"))
+			return false;
+
+		SDL_AudioSpec wave;
+		unsigned char* wave_data;
+		unsigned int wave_length;
+		if (!SDL_LoadWAV(*source, &wave, &wave_data, &wave_length))
+			return false;
+
+		int frequency = 44100;
+		int channels = 2;
+		buffer->clear(frequency, channels);
+
+		SDL_AudioCVT cvt;
+		SDL_BuildAudioCVT(&cvt, wave.format, wave.channels, wave.freq, AUDIO_S16LSB, channels, frequency);
+		cvt.buf = new unsigned char[wave_length * cvt.len_mult];
+		memcpy(cvt.buf, wave_data, wave_length);
+		cvt.len = wave_length;
+		SDL_ConvertAudio(&cvt);
+		SDL_FreeWAV(wave_data);
+
+		const short* data = (short*)cvt.buf;
+		const int length = cvt.len_cvt / (channels * sizeof(short));
+		short buf0[2048];
+		short buf1[2048];
+		short* buf[2] = { buf0, buf1 };
+		const int pages = length / 2048 + 1;
+		for (int page = 0; page < pages; ++page)
+		{
+			int pagesize = (page < pages - 1) ? 2048 : (length % 2048);
+			for (int i = 0; i < pagesize; ++i)
+				for (int j = 0; j < 2; ++j)
+					buf[j][i] = data[(page * 2048 + i) * 2 + j];
+			buffer->addData(buf, pagesize);
+		}
+		return true;
+	}
+
+#endif // defined(PLATFORM_WIIU)
 
 } // namespace rmx
