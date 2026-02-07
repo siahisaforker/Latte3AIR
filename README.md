@@ -15,7 +15,7 @@ The Wii U port compiles cleanly to an RPX and all major engine subsystems have b
 - [x] Input handling — VPAD (GamePad) + KPAD (Pro Controller) with analog stick → D-pad fallback
 - [x] Audio — complete AudioManager mixer running on a dedicated Wii U thread with AX voice output
 - [x] Filesystem — SD card paths unified to `/vol/external01/S3AIR/` with `roms/`, `saves/`, `mods/` subdirs
-- [x] Embedded ROM loading — 4 MB ROM baked into the RPX via `rom_data.h` (SD card too slow for streaming)
+- [x] Embedded ROM loading — 4 MB ROM baked into the RPX via `rom_data.h` (SD card likely too slow for streaming)
 - [x] ProcUI lifecycle — HOME button handling via WHBProcInit/IsRunning/Shutdown in SDL shim
 - [x] Networking — netplay disabled at compile time with clear guard; network init skipped on Wii U
 - [x] Performance instrumentation — `wiiu_perf` profiling helpers ready for runtime tuning
