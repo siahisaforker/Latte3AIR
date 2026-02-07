@@ -156,67 +156,11 @@ namespace
 
 	bool initGX2()
 	{
-#if WIIU_HAS_WHB_GFX
-	WHBGfxInit();
-
-	// WHB does not expose the same helpers in this SDK; use OSScreen defaults
-	gState.mTVWidth = 1280;
-	gState.mTVHeight = 720;
-	gState.mDRCWidth = 854;
-	gState.mDRCHeight = 480;
-
-	gState.mTVSize = OSScreenGetBufferSizeEx(SCREEN_TV);
-	gState.mDRCSize = OSScreenGetBufferSizeEx(SCREEN_DRC);
-
-	gState.mTVBuffer = memalign(0x100, gState.mTVSize);
-	gState.mDRCBuffer = memalign(0x100, gState.mDRCSize);
-
-			if (!gState.mTVBuffer || !gState.mDRCBuffer)
-			{
-				RMX_LOG_ERROR("initGX2: memalign failed (tvSize=" << gState.mTVSize << ", drcSize=" << gState.mDRCSize << ")");
-				WHBGfxShutdown();
-				if (gState.mTVBuffer) { free(gState.mTVBuffer); gState.mTVBuffer = nullptr; }
-				if (gState.mDRCBuffer) { free(gState.mDRCBuffer); gState.mDRCBuffer = nullptr; }
-				gState.mTVSize = 0;
-				gState.mDRCSize = 0;
-				return false;
-			}
-
-			RMX_LOG_INFO("initGX2: allocated TV/DRC buffers for GX2 (tvSize=" << gState.mTVSize << ", drcSize=" << gState.mDRCSize << ")");
-
-			if (gState.mTVHeight > 0)
-		{
-			const int stride = static_cast<int>(gState.mTVSize / (sizeof(uint32_t) * gState.mTVHeight));
-			gState.mTVStridePixels = (stride > 0) ? stride : gState.mTVWidth;
-		}
-		else
-		{
-			gState.mTVStridePixels = gState.mTVWidth;
-		}
-
-		if (gState.mDRCHeight > 0)
-		{
-			const int stride = static_cast<int>(gState.mDRCSize / (sizeof(uint32_t) * gState.mDRCHeight));
-			gState.mDRCStridePixels = (stride > 0) ? stride : gState.mDRCWidth;
-		}
-		else
-		{
-			gState.mDRCStridePixels = gState.mDRCWidth;
-		}
-
-		if (!gState.mTVBuffer || !gState.mDRCBuffer)
-		{
-			WHBGfxShutdown();
-			gState.mTVBuffer = nullptr;
-			gState.mDRCBuffer = nullptr;
-			gState.mTVSize = 0;
-			gState.mDRCSize = 0;
-			return false;
-		}
-		return true;
-#else
+		// Software renderer outputs RGBA pixels to a CPU buffer.
+		// OSScreen handles blitting this buffer to TV/DRC correctly.
+		// GX2/WHBGfx manages its own color buffers that don't interop
+		// with our CPU-rendered framebuffer, so skip GX2 entirely.
 		return false;
-#endif
 	}
 }
 
@@ -290,17 +234,6 @@ namespace rmx
 
 		DCFlushRange(gState.mTVBuffer, gState.mTVSize);
 		DCFlushRange(gState.mDRCBuffer, gState.mDRCSize);
-
-#if WIIU_HAS_WHB_GFX
-		if (gState.mGX2Active)
-		{
-			WHBGfxBeginRender();
-			WHBGfxFinishRender();
-			WHBGfxFinishRenderTV();
-			WHBGfxFinishRenderDRC();
-			return;
-		}
-#endif
 
 		OSScreenFlipBuffersEx(SCREEN_TV);
 		OSScreenFlipBuffersEx(SCREEN_DRC);

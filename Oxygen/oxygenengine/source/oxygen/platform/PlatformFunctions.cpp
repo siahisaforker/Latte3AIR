@@ -351,32 +351,32 @@ void PlatformFunctions::onEngineStartup()
 
 #if defined(PLATFORM_WIIU)
 	RMX_LOG_INFO("PlatformFunctions::onEngineStartup: entered");
-	// Ensure the S3AIR root and subfolders on external SD are available for game data
+	// Create the game folder and subdirectories at the root of the SD card.
+	// Path: /vol/external01/Sonic3AIR/  (matches engine's mAppDataPath)
 	try
 	{
 		const std::wstring externalRoot = L"/vol/external01/";
-		// If the external SD volume is mounted, create the S3AIR tree and use a file logger.
 		if (FTX::FileSystem->exists(externalRoot))
 		{
-			const std::wstring base = externalRoot + std::wstring(L"S3AIR/");
+			const std::wstring base = externalRoot + L"Sonic3AIR/";
 			FTX::FileSystem->createDirectory(base);
-			FTX::FileSystem->createDirectory(base + L"roms/");
+			FTX::FileSystem->createDirectory(base + L"data/");
 			FTX::FileSystem->createDirectory(base + L"saves/");
 			FTX::FileSystem->createDirectory(base + L"mods/");
 			FTX::FileSystem->createDirectory(base + L"logs/");
 			FTX::FileSystem->createDirectory(base + L"config/");
 			FTX::FileSystem->createDirectory(base + L"scripts/");
 			FTX::FileSystem->createDirectory(base + L"cache/");
+			FTX::FileSystem->createDirectory(base + L"savestates/");
+			FTX::FileSystem->createDirectory(base + L"storage/");
 
-			rmx::Logging::addLogger(*new rmx::FileLogger(base + std::wstring(L"logs/debug.log"), true, false));
+			rmx::Logging::addLogger(*new rmx::FileLogger(base + L"logs/debug.log", true, false));
 			rmx::Logging::addLogger(*new rmx::StdCoutLogger(true));
 		}
 		else
 		{
-			// External SD not present (e.g. running in Cemu). Print friendly message and keep stdout logger.
 			rmx::Logging::addLogger(*new rmx::StdCoutLogger(true));
-			RMX_LOG_INFO("play on real hardware");
-			RMX_LOG_INFO("PlatformFunctions::onEngineStartup: external SD not present");
+			RMX_LOG_INFO("PlatformFunctions::onEngineStartup: external SD not mounted");
 		}
 	}
 	catch(...) {}
@@ -418,7 +418,9 @@ std::wstring PlatformFunctions::getAppDataPath()
 #elif defined(PLATFORM_MAC) || defined(PLATFORM_IOS)
 	return mExAppDataPath;
 #elif defined(PLATFORM_WIIU)
-	return L"/vol/external01/S3AIR";
+	// Return the SD root; the engine appends mAppDataFolder ("Sonic3AIR") to build
+	// the full path /vol/external01/Sonic3AIR/ — no double-nesting.
+	return L"/vol/external01";
 #endif
 	return L"";
 }

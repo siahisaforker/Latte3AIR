@@ -23,9 +23,9 @@ bool WiiUFileSystem::initialize()
     if (mInitialized)
         return true;
 
-    // Set up Wii U paths — must match PlatformFunctions::onEngineStartup()
-    mBasePath    = "/vol/external01/S3AIR/";
-    mRomPath     = mBasePath + "roms/";
+    // Set up Wii U paths — must match engine's mAppDataPath (/vol/external01/Sonic3AIR/)
+    mBasePath    = "/vol/external01/Sonic3AIR/";
+    mRomPath     = mBasePath + "data/";
     mModsPath    = mBasePath + "mods/";
     mSavePath    = mBasePath + "saves/";
     mConfigPath  = mBasePath + "config/";
@@ -190,6 +190,9 @@ bool WiiUFileSystem::ensureDirectoriesExist()
     const std::string dirs[] = {
         mBasePath, mRomPath, mModsPath, mSavePath, mConfigPath,
         mScriptsPath, mCachePath,
+        mBasePath + "savestates/",
+        mBasePath + "storage/",
+        mBasePath + "logs/",
         mRomPath + "audio/",
         mRomPath + "audio/original/",
         mRomPath + "audio/remastered/"

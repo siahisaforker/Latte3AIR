@@ -74,6 +74,15 @@ bool EngineDelegate::onEnginePreStartup()
 	#if (defined(PLATFORM_MAC) || defined(PLATFORM_IOS)) && defined(ENDUSER)
 		Configuration& config = Configuration::instance();
 		const bool check = FTX::FileSystem->exists(config.mGameDataPath + L"/gamedata.bin");
+	#elif defined(PLATFORM_WIIU)
+		// On Wii U the data/ folder must be on the SD card.
+		// Log a clear message but don't abort — the engine will report
+		// specific missing packages later if needed.
+		const bool check = (FTX::FileSystem->exists(L"data/content.json") || FTX::FileSystem->exists(L"data/gamedata.bin"));
+		if (!check)
+		{
+			RMX_LOG_INFO("Game data not found in working directory.  Place the 'data' folder (containing gamedata.bin, enginedata.bin, audiodata.bin) inside /vol/external01/Sonic3AIR/data/ on SD card.\");");
+		}
 	#else
 		const bool check = (FTX::FileSystem->exists(L"data/content.json") || FTX::FileSystem->exists(L"data/gamedata.bin"));
 	#endif
@@ -81,7 +90,7 @@ bool EngineDelegate::onEnginePreStartup()
 		{
 		#ifdef PLATFORM_WINDOWS
 			RMX_ERROR("Seems like you launched the Sonic3AIR.exe from inside the downloaded ZIP file.\n\nMake sure to first extract the ZIP somewhere like on your desktop, then start the Sonic3AIR.exe in the extracted folder.", );
-		#else
+		#elif !defined(PLATFORM_WIIU)
 			RMX_ERROR("Seems like you launched the Sonic3AIR executable from inside the downloaded ZIP file.\n\nMake sure to first extract the ZIP somewhere like on your desktop, then start the Sonic3AIR executable in the extracted folder.", );
 		#endif
 			return false;

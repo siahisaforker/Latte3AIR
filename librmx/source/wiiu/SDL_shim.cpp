@@ -55,6 +55,7 @@ namespace
 	constexpr Uint32 kWindowIdBase = 1;
 	std::atomic<Uint32> gNextWindowId{ kWindowIdBase };
 	std::string gLastError;
+	static bool gWHBProcInitialized = false;
 
 	struct AudioDevice
 	{
@@ -102,7 +103,11 @@ int SDL_Init(Uint32)
 {
 	RMX_LOG_INFO("SDL_Init: initializing VPAD");
 	VPADInit();
-	WHBProcInit();
+	if (!gWHBProcInitialized)
+	{
+		WHBProcInit();
+		gWHBProcInitialized = true;
+	}
 	return 0;
 }
 
@@ -113,7 +118,11 @@ int SDL_InitSubSystem(Uint32)
 
 void SDL_Quit()
 {
-	WHBProcShutdown();
+	if (gWHBProcInitialized)
+	{
+		WHBProcShutdown();
+		gWHBProcInitialized = false;
+	}
 }
 
 void SDL_QuitSubSystem(Uint32)
@@ -127,10 +136,9 @@ const char* SDL_GetError()
 
 Uint32 SDL_GetTicks()
 {
-	// Use OSGetTime for Wii U timing
-	// OSGetTime returns time in nanoseconds, convert to milliseconds
-	uint64_t timeNs = OSGetTime();
-	return static_cast<Uint32>(timeNs / 1000000ULL);
+	// OSGetTime() returns OS ticks (bus clock based), NOT nanoseconds.
+	// Use the proper conversion macro.
+	return static_cast<Uint32>(OSTicksToMilliseconds(OSGetTime()));
 }
 
 void SDL_Delay(Uint32 ms)
@@ -441,6 +449,16 @@ void SDL_GL_SwapWindow(SDL_Window*)
 void* SDL_GL_GetCurrentContext()
 {
 	return nullptr;
+}
+
+void SDL_GL_DeleteContext(void*)
+{
+	// No-op: Wii U has no OpenGL context
+}
+
+int SDL_GL_MakeCurrent(SDL_Window*, void*)
+{
+	return 0;
 }
 
 SDL_bool SDL_IsTextInputActive()
@@ -1122,9 +1140,11 @@ int SDL_CondWait(SDL_cond* cond, SDL_mutex* mutex)
 
 int SDL_CondBroadcast(SDL_cond* cond)
 {
-	// WiiU condition variables only support signal, broadcast to single waiter
+	// Wii U OS doesn't have a native broadcast.  Signal multiple times
+	// to wake all possible waiters (max threads on Wii U is ~8).
 	if (!cond) return -1;
-	cond->cond.signal();
+	for (int i = 0; i < 16; ++i)
+		cond->cond.signal();
 	return 0;
 }
 
@@ -1132,11 +1152,15 @@ int SDL_CondWaitTimeout(SDL_cond* cond, SDL_mutex* mutex, Uint32 ms)
 {
 	if (!cond || !mutex)
 		return -1;
-	
-	// Wii U condition variables don't have timeout support
-	// For simplicity, we'll just wait without timeout
-	cond->cond.wait(mutex->mutex);
-	return 0;
+
+	// Wii U has no timed condition wait.
+	// Release the mutex, sleep for the timeout, re-acquire, and report timeout.
+	// If the condition was signalled during our sleep we'll detect it
+	// on the next iteration in the caller's loop.
+	mutex->mutex.unlock();
+	OSSleepTicks(OSMillisecondsToTicks(ms));
+	mutex->mutex.lock();
+	return SDL_MUTEX_TIMEDOUT;
 }
 
 // ---- Performance Counter ----
@@ -1154,8 +1178,7 @@ Uint64 SDL_GetPerformanceFrequency()
 // ---- Base / Pref Path ----
 char* SDL_GetBasePath()
 {
-	// Return the SD card app directory
-	const char* path = "/vol/external01/sonic3air/";
+	const char* path = "/vol/external01/Sonic3AIR/";
 	size_t len = std::strlen(path);
 	char* ret = static_cast<char*>(std::malloc(len + 1));
 	if (ret) std::strcpy(ret, path);
@@ -1164,7 +1187,7 @@ char* SDL_GetBasePath()
 
 char* SDL_GetPrefPath(const char* /*org*/, const char* /*app*/)
 {
-	const char* path = "/vol/external01/sonic3air/save/";
+	const char* path = "/vol/external01/Sonic3AIR/saves/";
 	size_t len = std::strlen(path);
 	char* ret = static_cast<char*>(std::malloc(len + 1));
 	if (ret) std::strcpy(ret, path);

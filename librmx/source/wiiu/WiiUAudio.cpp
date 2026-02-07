@@ -53,6 +53,14 @@ bool WiiUAudioBackend::initialize(int sampleRate, int channels, int bufferSize)
     // Setup and configure voice
     setupVoice();
 
+    // If voice acquisition failed, audio is unavailable but not fatal
+    if (!mVoice)
+    {
+        freeBuffer();
+        AXQuit();
+        return false;
+    }
+
     mInitialized = true;
     return true;
 }

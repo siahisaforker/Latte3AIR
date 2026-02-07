@@ -111,9 +111,10 @@ void PlatformSpecifics::platformStartup()
 #if defined(WIIU_INIT_KPAD)
 	KPADInit();
 #endif
-	// Try common SD mount points and set working directory to the S3AIR folder if present
+	// Try common SD mount points and set working directory to the Sonic3AIR folder.
+	// The primary path on Aroma is /vol/external01/Sonic3AIR.
 	{
-		const char* candidates[] = {"sd:/S3AIR", "/vol/storage_sd/S3AIR", "/vol/storage_mlc01/S3AIR", "/vol/storage_usb01/S3AIR", "/S3AIR"};
+		const char* candidates[] = {"/vol/external01/Sonic3AIR", "sd:/Sonic3AIR", "/vol/storage_sd/Sonic3AIR", "/vol/storage_mlc01/Sonic3AIR", "/vol/storage_usb01/Sonic3AIR", "/Sonic3AIR"};
 		for (const char* p : candidates)
 		{
 			struct stat st;
@@ -130,17 +131,19 @@ void PlatformSpecifics::platformStartup()
 		}
 	}
 
-	// Verify required ROM is present — skip check if ROM is embedded in the binary
+	// Verify required ROM is present — skip check if ROM is embedded in the binary.
+	// (The ROM is embedded via rom_data.h at build time for the all-in-one RPX.)
 	if (get_embedded_rom_size() == 0)
 	{
 		const char* requiredRom = "Sonic_Knuckles_wSonic3.bin";
 		struct stat st;
 		if (stat(requiredRom, &st) != 0)
 		{
+			// SDL_Init hasn't run yet, so WHBProcInit is safe here (first call).
 			WHBProcInit();
 			WHBLogConsoleInit();
-			WHBLogPrintf("Error: required ROM '%s' not found in working directory.\n", requiredRom);
-			WHBLogPrintf("Place it in the S3AIR folder on the SD card (e.g. sd:/S3AIR).\n");
+			WHBLogPrintf("Error: required ROM '%s' not found.\n", requiredRom);
+			WHBLogPrintf("Place it in /vol/external01/Sonic3AIR/ on SD card.\n");
 			WHBLogPrintf("Press HOME to exit.\n");
 			while (WHBProcIsRunning())
 			{

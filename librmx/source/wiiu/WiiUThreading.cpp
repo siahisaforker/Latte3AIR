@@ -6,25 +6,40 @@
 #include <memory>
 #include <cstring>
 #include <unordered_map>
+#include <malloc.h>
 
 namespace rmx {
 
+static OSMutex gThreadMapMutex;
+static bool gThreadMapMutexInit = false;
 static std::unordered_map<OSThread*, WiiUThread*> gThreadMap;
+
+static void ensureMapMutex()
+{
+    if (!gThreadMapMutexInit)
+    {
+        std::memset(&gThreadMapMutex, 0, sizeof(OSMutex));
+        OSInitMutex(&gThreadMapMutex);
+        gThreadMapMutexInit = true;
+    }
+}
 
 // wrapper entry that matches OSThreadEntryPointFn
 static int WiiUThread_wrapper_entry(int argc, const char** argv)
 {
     OSThread* cur = OSGetCurrentThread();
+
+    ensureMapMutex();
+    OSLockMutex(&gThreadMapMutex);
     auto it = gThreadMap.find(cur);
+    WiiUThread* thread = (it != gThreadMap.end()) ? it->second : nullptr;
     if (it != gThreadMap.end())
-    {
-        WiiUThread* thread = it->second;
-        if (thread)
-        {
-            thread->runThreadFunction();
-        }
         gThreadMap.erase(it);
-    }
+    OSUnlockMutex(&gThreadMapMutex);
+
+    if (thread)
+        thread->runThreadFunction();
+
     OSExitThread(0);
     return 0;
 }
@@ -105,7 +120,7 @@ void WiiUConditionVariable::wait(WiiUMutex& mutex)
 }
 
 // WiiUThread implementation
-WiiUThread::WiiUThread() : mThread(nullptr), mJoinable(false)
+WiiUThread::WiiUThread() : mThread(nullptr), mStack(nullptr), mJoinable(false)
 {
 }
 
@@ -122,22 +137,32 @@ void WiiUThread::startInternal()
     if (mThread)
         return; // Already started
 
+    // Allocate the thread stack (PPC stacks grow downward)
+    mStack = memalign(8, kDefaultStackSize);
+    if (!mStack)
+        return;
+
     mThread = new OSThread();
     std::memset(mThread, 0, sizeof(OSThread));
+
+    // OSCreateThread expects the stack TOP (base + size) because PPC stacks grow down
+    void* stackTop = static_cast<uint8_t*>(mStack) + kDefaultStackSize;
 
     BOOL ok = OSCreateThread(mThread,
                              &WiiUThread_wrapper_entry,
                              0,
                              nullptr,
-                             nullptr,
+                             stackTop,
                              static_cast<uint32_t>(kDefaultStackSize),
                              kDefaultPriority,
-                             0);
+                             OS_THREAD_ATTRIB_AFFINITY_ANY);
 
     if (ok)
     {
-        // record mapping from OSThread* to this wrapper
+        ensureMapMutex();
+        OSLockMutex(&gThreadMapMutex);
         gThreadMap[mThread] = this;
+        OSUnlockMutex(&gThreadMapMutex);
         mJoinable = true;
         OSResumeThread(mThread);
     }
@@ -145,6 +170,8 @@ void WiiUThread::startInternal()
     {
         delete mThread;
         mThread = nullptr;
+        free(mStack);
+        mStack = nullptr;
     }
 }
 
@@ -154,9 +181,13 @@ void WiiUThread::join()
     {
         int result = 0;
         OSJoinThread(mThread, &result);
-        // thread has exited; clean up
         delete mThread;
         mThread = nullptr;
+        if (mStack)
+        {
+            free(mStack);
+            mStack = nullptr;
+        }
         mJoinable = false;
     }
 }

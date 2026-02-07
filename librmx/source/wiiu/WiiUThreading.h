@@ -111,11 +111,12 @@ private:
     void startInternal();
     
     OSThread* mThread;
+    void* mStack;
     ThreadFunction mFunction;
     bool mJoinable;
     
-    static constexpr int32_t kDefaultStackSize = 64 * 1024; // 64KB
-    static constexpr int32_t kDefaultPriority = 0;
+    static constexpr int32_t kDefaultStackSize = 128 * 1024; // 128KB — safe for deep call stacks
+    static constexpr int32_t kDefaultPriority = 16;          // Lower than default (0) to avoid starving main thread
 };
 
 } // namespace rmx

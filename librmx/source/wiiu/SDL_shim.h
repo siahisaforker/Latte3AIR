@@ -467,6 +467,8 @@ struct SDL_Thread;
 struct SDL_mutex;
 struct SDL_cond;
 
+#define SDL_MUTEX_TIMEDOUT 1
+
 // Hints
 #define SDL_HINT_RENDER_VSYNC "SDL_RENDER_VSYNC"
 #define SDL_HINT_VIDEO_ALLOW_SCREENSAVER "SDL_VIDEO_ALLOW_SCREENSAVER"
@@ -515,6 +517,8 @@ void SDL_DisableScreenSaver();
 // OpenGL (stubbed)
 int SDL_GL_SetAttribute(int attr, int value);
 void* SDL_GL_CreateContext(SDL_Window* window);
+void SDL_GL_DeleteContext(void* context);
+int SDL_GL_MakeCurrent(SDL_Window* window, void* context);
 void SDL_GL_SetSwapInterval(int interval);
 void SDL_GL_SwapWindow(SDL_Window* window);
 void* SDL_GL_GetCurrentContext();
