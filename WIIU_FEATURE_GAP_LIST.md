@@ -8,81 +8,85 @@ This file lists concrete feature gaps between the PC port and the current Wii U 
 
 Priority guide
 --------------
-- P0: Required for renderer to run (shaders, VBO/VAO, uniforms, buffer textures)
-- P1: Required for UI and gameplay parity (SDL dialog/timers, audio mixing, input mapping)
-- P2: Nice-to-have / performance (netplay adaptation, advanced GX2 fast-paths, profiling)
+- P0: Required for renderer to run (shaders, advanced texture formats, GX2 pipeline)
+- P1: Required for UI and gameplay parity (now mostly resolved)
+- P2: Nice-to-have / performance (GX2 fast-paths, profiling, optimization)
 
-Per-file gaps and recommended work
----------------------------------
+Resolved gaps ✅
+-----------------
 
-- Oxygen/oxygenengine/source/oxygen/rendering/opengl/shaders/*  (P0)
+- ~~librmx/source/wiiu/SDL_shim.cpp (P1)~~
+  **Done**: ProcUI lifecycle (WHBProcInit/IsRunning/Shutdown), SDL_PollEvent → SDL_QUIT on HOME, timers, basic RWops, joystick APIs all implemented.
+
+- ~~librmx/source/rmxmedia/audiovideo/AudioManager.cpp (P1)~~
+  **Done**: Complete Wii U AudioManager implementation inside `#if defined(PLATFORM_WIIU)` block — dedicated mixing thread, sample conversion, AX voice output. `AudioManager_WiiU.cpp` removed (was duplicate causing linker errors).
+
+- ~~Oxygen/oxygenengine/source/oxygen/platform/PlatformFunctions.cpp (P1)~~
+  **Done**: `getAppDataPath()` returns `/vol/external01/S3AIR` on Wii U; creates `scripts/` and `cache/` subdirs at startup.
+
+- ~~Filesystem & RWops mapping (P1)~~
+  **Done**: `WiiUFileSystem.cpp` base path `/vol/external01/S3AIR/` with `roms/`, `saves/` subdirs. Unified with PlatformFunctions path.
+
+- ~~Input mapping — VPAD / KPAD (P1)~~
+  **Done**: `platform/wiiu/input/` — full VPAD (GamePad) + KPAD (Pro Controller) polling, button mapping to Oxygen engine flags, analog stick → D-pad fallback, touch screen support.
+
+- ~~Networking / Netplay (P2)~~
+  **Done**: Netplay disabled at compile time (`#if !defined(PLATFORM_WIIU)` in EngineMain.cpp). `wiiu_network.cpp/.h` provides nsysnet TCP socket wrapper for future use. `wiiu_net::isNetplaySupported()` returns false; clear user-facing message.
+
+- ~~Endianness / byte-order (P1)~~
+  **Done**: `RMX_IS_BIG_ENDIAN` macro; `readMemoryUnalignedSwapped` = no-op on BE; BE guards on EmulatorInterface write paths; palette load guard in LemonScriptBindings.
+
+- ~~Embedded ROM loading (P1)~~
+  **Done**: `rom_data.h` (4 MB via bin2c.py) → `get_embedded_rom()` hooked into `ResourcesCache::loadRom()`. PlatformSpecifics skips disk ROM check when embedded ROM present.
+
+- ~~ProcUI lifecycle (P1)~~
+  **Done**: WHBProcInit/IsRunning/Shutdown integrated into SDL_shim.cpp; HOME button injects SDL_QUIT.
+
+- ~~librmx/source/wiiu/gl_compat.h / gl_compat.cpp — VBO/VAO, buffers, uniforms (P0→P1)~~
+  **Done**: Broad implementation covering textures (gen/delete/bind/image2D/subImage2D/texBuffer/readPixels), buffers (gen/delete/bind/data/subData/map/mapRange/unmap/bindRange/bindBase), VAO (gen/bind/delete), vertex attribs (pointer/IPointer/divisor/enable/disable), shader programs (create/delete/attach/detach/compile/link/use/getShaderiv/getProgramiv/getInfoLog), uniforms (1/2/3/4 i/f/iv/fv + matrix 2/3/4), framebuffers, renderbuffers, state (enable/disable/blend/depth/scissor/viewport), draw calls (arrays/elements/instanced/rangeElements), and query functions (glGetString/glGetIntegerv/glGetError).
+
+Remaining gaps
+--------------
+
+- Oxygen/oxygenengine/source/oxygen/rendering/opengl/shaders/* (P0)
   - Files: DebugDrawPlaneShader, OpenGLShader, PostFXBlurShader, RenderComponentSpriteShader, RenderPaletteSpriteShader, RenderPlaneShader, RenderVdpSpriteShader, Simple* shaders.
   - Gap: GLSL shaders target desktop GL. Need either a cross-compiler to GX2 shader binary or a GLSL-to-GX2 translation step at build-time.
-  - Suggested work: Add a build step to precompile GLSL to GX2 (preferred) or implement minimal CPU-path shaders for critical shaders (fallback).
+  - Suggested work: Add a build step to precompile GLSL to GX2 (preferred) or implement minimal CPU-path shaders for critical shaders (fallback). `wiiu_gpu.cpp` ShaderEffect enum already defines CPU-side IDs for each shader type.
 
 - Oxygen/oxygenengine/source/oxygen/rendering/opengl/OpenGLRenderer.cpp (P0)
-  - Gap: Uses shader programs, program/attribute/uniform binds, glUseProgram, glGetUniformLocation, etc.
-  - Suggested work: Ensure `gl_compat` implements program, shader, uniform APIs or route to GX2 pipeline calls; verify uniform types used by each shader.
+  - Gap: Uses shader programs with glUseProgram/glGetUniformLocation etc. gl_compat now implements these APIs, but the actual shader execution still falls through to the software rasterizer rather than GX2 hardware.
+  - Suggested work: Connect gl_compat shader programs to GX2 shader pipeline; map engine uniform names to GX2 uniform blocks.
 
 - Oxygen/oxygenengine/source/oxygen/rendering/utils/BufferTexture.cpp (P0)
-  - Gap: Uses `GL_TEXTURE_BUFFER`, buffer textures, glGenBuffers, glBindBuffer, glBufferData. `gl_compat` must implement buffer object backing and map to GX2 or emulate with texture2D.
-  - Suggested work: Implement `glGenBuffers`/`glBindBuffer`/`glBufferData` in `librmx/source/wiiu/gl_compat.*`. Provide a BufferTexture fallback that uploads to a 2D texture if buffer textures unsupported.
+  - Gap: Uses `GL_TEXTURE_BUFFER`. gl_compat implements `glTexBuffer`/`glTexBufferRange` as 1D texture emulation. May need GX2-native buffer texture support for full correctness.
+  - Suggested work: Validate current emulation works for all engine use cases; add GX2 buffer texture path if needed.
 
-- librmx/source/wiiu/gl_compat.h / gl_compat.cpp (P0,P1)
-  - Gap: Header lists many GL functions; many need full implementations: shader compile/link, program objects, attribute/uniform handling, VBO/VAO, buffer ranges, texture formats, glReadPixels, glDrawElements, instancing.
-  - Suggested work: Prioritize VBO/VAO, glBufferData, glDrawElements, shader program management and uniform setters. Implement texture format translation for common formats (GL_RGBA, GL_RGB, GL_UNSIGNED_BYTE, paletted formats used by engine).
-
-- librmx/source/rmxmedia/framework/wiiu_shim_gx2.* (P0,P2)
-  - Gap: GX2 fast-path implemented for simple textures, but additional formats (buffer textures, paletted textures, compressed formats) may be needed. Swizzle/tile handling must match texture uploads.
-  - Suggested work: Add support for buffer-backed textures and format conversion; expand logging around GX2 init and guard sync/flush points.
-
-- librmx/source/wiiu/SDL_shim.cpp (P1)
-  - Gap: `PlatformFunctions.cpp` uses SDL message boxes, timers, RWops, audio open semantics; ensure shim implements `SDL_ShowSimpleMessageBox`, `SDL_Delay`/`SDL_GetTicks`, `SDL_RWFromFile`, `SDL_OpenAudioDevice`, `SDL_LoadWAV_RW`, and controller APIs used by engine.
-  - Suggested work: Implement missing SDL calls used by `PlatformFunctions.cpp`; add robust error returns and log messages. Add path mapping for persistent saves/mods.
-
-- Oxygen/oxygenengine/source/oxygen/platform/PlatformFunctions.cpp (P1)
-  - Gap: Uses SDL message boxes and file dialogs; verify these APIs are functional on Wii U or provide no-op/console fallbacks.
-  - Suggested work: Ensure UI fallbacks for Wii U (simple in-game dialogs) if message boxes not available.
-
-- librmx/source/rmxmedia/audiovideo/AudioManager_WiiU.cpp and librmx/source/wiiu/WiiUAudio.h (P1)
-  - Gap: `sndcore2` backend must support mixing, sample formats, device selection, and callback timing similar to SDL audio expectations.
-  - Suggested work: Validate `AudioManager_WiiU` handles same sample rates, stereo/mono conversions, and low-latency callback behavior; add stress tests for audio buffer underrun/overrun.
-
-- Input mapping (VPAD / keyboard abstraction) (P1)
-  - Files: `Oxygen/sonic3air/source/sonic3air/*` (input code, DynamicSprites for gamepad visuals)
-  - Gap: Ensure `VPAD` mapping covers keyboard bindings, multiple controllers, and controller visual styles.
-  - Suggested work: Create a mapping layer that maps engine input events to VPAD button sets and add settings for GamePad style.
-
-- Filesystem & RWops mapping (P1)
-  - Gap: `mods/`, `saves/`, RWops-based resource loads assume block FS. Wii U must map those to persistent areas (Saves, SD paths) and ensure return paths for writes.
-  - Suggested work: Implement `PlatformFile` wrappers that translate paths and add unit tests accessing mods/saves.
-
-- Networking / Netplay (P2)
-  - Files: `Oxygen/sonic3air/source/sonic3air/EngineDelegate.*` and netplay stack
-  - Gap: Wii U networking APIs differ; netplay may need rework or be disabled with UI notice.
-  - Suggested work: Stub netplay endpoints with clear UI message and plan a later port to Wii U sockets APIs.
+- librmx/source/rmxmedia/framework/wiiu_shim_gx2.* (P0, P2)
+  - Gap: GX2 fast-path covers simple RGBA textures. Additional formats (paletted, compressed, buffer-backed) may be needed for full renderer.
+  - Suggested work: Add support for format conversion; expand logging around GX2 init and guard sync/flush points.
 
 - Performance and profiling (P2)
-  - Gap: Many CPU fallbacks (software texture uploads, swizzling, shader emulation) are slower. Identify memcpy hotspots and optimize.
-  - Suggested work: Add instrumentation hooks in `gl_compat` and `wiiu_shim_gx2` to measure upload times; prioritize offload of repeated workloads to GX2.
+  - Gap: Many CPU fallbacks (software rasterizer in gl_compat, texture uploads, shader emulation). Need real-hardware profiling.
+  - Suggested work: Use `wiiu_perf` instrumentation to identify hotspots; offload repeated workloads to GX2. Profile memcpy and blit paths.
 
 Build and test notes
 --------------------
-- Shader strategy: Prefer precompile GLSL -> GX2 binary as a build step. If that's infeasible, implement a small CPU fallback for critical shaders (copy, palette, sprite blit).
-- Incremental testing: Start by implementing `glGenBuffers`/`glBindBuffer`/`glBufferData` and buffer-to-2D fallback to get `BufferTexture.cpp` building and rendering simple quads. Then add shader program stubs.
+- Shader strategy: Prefer precompile GLSL → GX2 binary as a build step. If infeasible, implement small CPU fallbacks for critical shaders (copy, palette, sprite blit) — see `wiiu_gpu.h` ShaderEffect enum.
+- Incremental testing: gl_compat now covers VBO/VAO/BufferTexture APIs. Focus on shader pipeline integration next.
 - Emulator testing: Use Cemu for iterative development; collect logs from `RMX_LOG_*` to diagnose runtime failures.
+- Build output: `bin/WiiU/sonic3air.rpx`
 
 Contributor assignment suggestions
 --------------------------------
-- Beginner: Implement SDL shim calls used by `PlatformFunctions.cpp` and path mapping for saves/mods.
-- Intermediate: Implement VBO/BufferTexture mapping in `gl_compat` and test `BufferTexture.cpp` usage.
-- Advanced: Add shader cross-compilation step or implement full GX2 shader pipeline for all engine shaders.
+- Beginner: Implement `SDL_ShowSimpleMessageBox` as OSScreen text overlay; add controller button prompt visuals.
+- Intermediate: Connect gl_compat shader programs to GX2 pipeline for a single shader (e.g., copy shader).
+- Advanced: Full GX2 shader pipeline for all engine shaders; hardware-accelerated buffer textures.
 
 Next immediate steps (recommended)
 --------------------------------
-1. Implement buffer object support and BufferTexture fallback in `librmx/source/wiiu/gl_compat.*` (P0).
-2. Add a minimal shader program stub and uniform setters so renderer can render without full GX2 shaders (temporary P0 fallback).
-3. Implement missing SDL shim functions used by `PlatformFunctions.cpp` (P1).
+1. Runtime test on Cemu / real hardware and fix any crashes or rendering issues.
+2. Implement GX2 shader pipeline for at least the critical copy/palette/sprite shaders (P0).
+3. Profile on real hardware and optimize hot paths (P2).
 
 Contact / Questions
 -------------------

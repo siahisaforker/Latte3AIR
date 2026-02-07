@@ -4,23 +4,24 @@ This project aims to be native Wii U port of **Sonic 3 A.I.R.** (Angel Island Re
 
 ## Project Status
 
-**Current State: Active Development**
+**Current State: Core Port Complete — Runtime Testing Phase**
 
--Core Oxygen Engine builds for Wii U
+The Wii U port compiles cleanly to an RPX and all major engine subsystems have been implemented or adapted:
 
--Basic video output (OSScreen fallback + GX2 via WHBGfx)
-
--Input handling (VPAD/KPAD integration)
-
--Audio system (sndcore2 backend)
-
--Filesystem access (SD card support)
-
--Network (being adapted for Wii U)
-
--OpenGL renderer (software renderer active)
-
-**Goal: 1:1 feature parity with PC version**
+- [x] Core Oxygen Engine builds and links for Wii U (PowerPC / Espresso)
+- [x] Big-endian correctness — byte-swaps disabled where M68K data is already native order
+- [x] Video output (OSScreen fallback + GX2 via WHBGfx; software renderer active)
+- [x] Full GL compatibility layer (`gl_compat`) — textures, buffers, VAO/VBO, shaders, framebuffers, uniforms, draw calls
+- [x] Input handling — VPAD (GamePad) + KPAD (Pro Controller) with analog stick → D-pad fallback
+- [x] Audio — complete AudioManager mixer running on a dedicated Wii U thread with AX voice output
+- [x] Filesystem — SD card paths unified to `/vol/external01/S3AIR/` with `roms/`, `saves/`, `mods/` subdirs
+- [x] Embedded ROM loading — 4 MB ROM baked into the RPX via `rom_data.h` (SD card too slow for streaming)
+- [x] ProcUI lifecycle — HOME button handling via WHBProcInit/IsRunning/Shutdown in SDL shim
+- [x] Networking — netplay disabled at compile time with clear guard; network init skipped on Wii U
+- [x] Performance instrumentation — `wiiu_perf` profiling helpers ready for runtime tuning
+- [ ] Full OpenGL renderer (shaders need GLSL→GX2 cross-compilation or CPU fallback)
+- [ ] GX2 fast-path expansion for advanced texture formats
+- [ ] Runtime testing and performance optimization on real hardware
 
 ## Quick Start
 
@@ -51,29 +52,33 @@ The build produces:
 ### Paths
 The port automatically tries to detect these locations:
 
-`/vol/external01/S3AIR/rom` (rom is where you put your bin)
+`/vol/external01/S3AIR/roms/` — place your `Sonic_Knuckles_wSonic3.bin` here (only needed if not using the embedded ROM)
 
-`/vol/external01/S3AIR/save` (save is where you put your save files)
+`/vol/external01/S3AIR/saves/` — persistent save data is written here automatically
 
-`/vol/external01/S3AIR/mods` (mods is where you put your mods)
+`/vol/external01/S3AIR/mods/` — drop mod folders here
 
 ## Features
 
 ### Implemented
-- **Video**: OSScreen fallback + GX2 (WHBGfx) rendering
-- **Input**: Native Wii U GamePad support
-- **Audio**: sndcore2-based audio output
-- **Filesystem**: Full SD card access
-- **Save System**: Persistent game saves
-- **Mods**: Basic mod loading support
+- **Video**: OSScreen fallback + GX2 (WHBGfx) rendering; broad `gl_compat` layer with software rasterizer
+- **Input**: Native Wii U GamePad (VPAD) + Pro Controller (KPAD) support with analog→digital fallback
+- **Audio**: Full AudioManager mixer on dedicated thread → AX voice output (sndcore2 backend)
+- **Endianness**: Correct big-endian handling — M68K and Wii U share byte order, double-swaps eliminated
+- **Filesystem**: Unified SD card paths (`/vol/external01/S3AIR/`) with `roms/`, `saves/`, `mods/` subdirs
+- **ROM Loading**: Embedded ROM via `rom_data.h` (4 MB baked into RPX); SD card read as fallback
+- **Save System**: Persistent game saves to SD card
+- **Mods**: Mod loading from SD card
+- **ProcUI**: HOME button lifecycle management (WHBProc integration in SDL shim)
+- **Network**: Netplay gracefully disabled with compile-time guard; `wiiu_net` TCP wrapper ready for future use
+- **Performance Tools**: `wiiu_perf` instrumentation (scoped timers, per-section reporting)
+- **GX2 Renderer**: Basic GX2 rendering backend with textured triangle fast-path
+- **OSScreen Renderer**: Fallback framebuffer renderer with text overlay support
 
-### In Progress
-
-- **Network**: Adapting netplay for Wii U networking APIs
-
-- **OpenGL**: Full OpenGL renderer support
-
-- **Performance**: Optimizations for Wii U hardware
+### Remaining Work
+- **OpenGL Shaders**: GLSL→GX2 cross-compilation or CPU shader emulation for full renderer
+- **Advanced Texture Formats**: Buffer textures, paletted/compressed format expansion in GX2 path
+- **Performance Optimization**: Profile on real hardware; expand GX2 fast-paths to reduce CPU fallback usage
 
   
 ## Technical Details
@@ -82,10 +87,21 @@ The port automatically tries to detect these locations:
 - **Oxygen Engine**: Core game engine (cross-platform)
 - **librmx**: Foundation libraries (media, base utilities)
 - **WiiU Layer**: Platform-specific implementations
-  - `VideoManager_WiiU.cpp` - Graphics backend
-  - `AudioManager_WiiU.cpp` - Audio backend  
-  - `SDL_shim.cpp` - SDL compatibility layer
-  - `WiiUGfx.cpp` - GX2/OSScreen abstraction
+  - `gl_compat.cpp/.h` - Broad OpenGL compatibility layer (textures, buffers, shaders, FBOs, draw calls)
+  - `AudioManager.cpp` - Wii U audio implementation (inside `#if defined(PLATFORM_WIIU)` block)
+  - `SDL_shim.cpp` - SDL compatibility layer with ProcUI lifecycle integration
+  - `WiiUGfx.cpp` - GX2/OSScreen abstraction with optimized blit
+  - `WiiUAudio.h` - AX voice backend declarations
+  - `WiiUFileSystem.cpp` - Path mapping to `/vol/external01/S3AIR/`
+  - `rom_data.h` / `rom_data.cpp` - Embedded ROM (generated at build time via `bin2c.py`)
+- **Platform Layer** (`platform/wiiu/`):
+  - `input/` - VPAD/KPAD polling, button mapping, analog stick handling
+  - `render/` - GX2 renderer and OSScreen fallback renderer
+  - `wiiu_gpu.cpp/.h` - Vertex batch helpers bridging gl_compat → GX2
+  - `wiiu_network.cpp/.h` - nsysnet TCP socket wrapper (netplay disabled)
+  - `wiiu_perf.cpp/.h` - Performance instrumentation
+  - `ax_stubs.cpp` - sndcore2 AX link-time stubs
+  - `atomic_stubs.cpp` - libatomic fallbacks
 
 ### Build System
 - **Platform**: `PLATFORM_WIIU` conditional compilation
@@ -97,7 +113,7 @@ The port automatically tries to detect these locations:
 - **WHB**: Wii U homebrew libraries
 - **Coreinit**: System APIs (threading, filesystem, etc.)
 - **GX2**: Graphics API
-- **sndcore2**: Audio API (WIP)
+- **sndcore2**: Audio API (AX voice output)
 
 ## Troubleshooting
 
@@ -298,11 +314,6 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 
 ---
 
-**Note**: This port aims for 1:1 feature parity with the PC version. Some features may be limited by Wii U hardware constraints.
+**Note**: The core port is code-complete and builds cleanly to `bin/WiiU/sonic3air.rpx`. Remaining work is runtime testing, shader cross-compilation for the full OpenGL renderer, and performance tuning on real hardware. Some visual features may fall back to the software renderer until GX2 shader support is expanded.
 
-
-
-**Note 2**: There are some issues with the Makefile that prevent it from building. I aim to fix that soon, but even if you could build it
-it probably won't work. it's in progress.
-
-**Note 3**: if you can get this to compile and run and it doesn't work (or crashes), make note of the logging. It shows exactly what initializes as it is happening, test on cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md)
+**Note 2**: If the build crashes or shows unexpected behavior at runtime, check the logging output — it shows exactly what initializes as it happens. Test on Cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md).
