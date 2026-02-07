@@ -15,10 +15,35 @@
 #include "oxygen/helper/Logging.h"
 #include "oxygen/platform/PlatformFunctions.h"
 
+#if defined(PLATFORM_WIIU)
+extern "C" const unsigned char* get_embedded_rom();
+extern "C" unsigned int get_embedded_rom_size();
+#endif
+
 
 bool ResourcesCache::loadRom()
 {
 	mRom.clear();
+
+#if defined(PLATFORM_WIIU)
+	// Try embedded ROM first (compiled into the binary via rom_data.h)
+	{
+		const unsigned int embeddedSize = get_embedded_rom_size();
+		const unsigned char* embeddedData = get_embedded_rom();
+		if (embeddedData != nullptr && embeddedSize > 0)
+		{
+			RMX_LOG_INFO("Loading embedded ROM (" << embeddedSize << " bytes)");
+			std::vector<uint8> content(embeddedData, embeddedData + embeddedSize);
+			if (loadRomMemory(content))
+			{
+				RMX_LOG_INFO("Embedded ROM loaded successfully");
+				return true;
+			}
+			RMX_LOG_INFO("Embedded ROM failed validation, trying filesystem...");
+			mRom.clear();
+		}
+	}
+#endif
 
 	// Load ROM content
 	Configuration& config = Configuration::instance();

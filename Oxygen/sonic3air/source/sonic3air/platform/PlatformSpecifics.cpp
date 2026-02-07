@@ -29,6 +29,7 @@
 #define WIIU_INIT_KPAD 1
 #endif
 #endif
+extern "C" unsigned int get_embedded_rom_size();
 #endif
 
 
@@ -129,7 +130,8 @@ void PlatformSpecifics::platformStartup()
 		}
 	}
 
-	// Verify required ROM is present in working directory
+	// Verify required ROM is present — skip check if ROM is embedded in the binary
+	if (get_embedded_rom_size() == 0)
 	{
 		const char* requiredRom = "Sonic_Knuckles_wSonic3.bin";
 		struct stat st;

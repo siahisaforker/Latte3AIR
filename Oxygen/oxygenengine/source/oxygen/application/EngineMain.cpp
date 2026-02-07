@@ -301,9 +301,13 @@ bool EngineMain::startupEngine()
 	mAudioOut->startup();
 
 	// Networking
+#if !defined(PLATFORM_WIIU)
 	RMX_LOG_INFO("Networking initialization...");
 	const bool useIPv6 = false;
 	mInternal.mEngineServerClient.setupClient(useIPv6);
+#else
+	RMX_LOG_INFO("Networking disabled on Wii U");
+#endif
 
 	// Done
 	RMX_LOG_INFO("Engine startup successful");
