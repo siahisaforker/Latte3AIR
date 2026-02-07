@@ -18,12 +18,15 @@ public:
     // Directory operations
     static bool createDirectory(const std::string& path);
     static bool createDirectory(const std::wstring& path);
+    static bool createDirectoryRecursive(const std::string& path);
     static bool directoryExists(const std::string& path);
     static bool directoryExists(const std::wstring& path);
 
     // File operations
     static bool fileExists(const std::string& path);
     static bool fileExists(const std::wstring& path);
+    static bool deleteFile(const std::string& path);
+    static std::vector<std::string> listDirectory(const std::string& path);
 
     // Wii U specific paths
     static const std::string& getBasePath();
@@ -31,6 +34,8 @@ public:
     static const std::string& getModsPath();
     static const std::string& getSavePath();
     static const std::string& getConfigPath();
+    static const std::string& getScriptsPath();
+    static const std::string& getCachePath();
 
 private:
     static bool ensureDirectoriesExist();
@@ -40,6 +45,8 @@ private:
     static std::string mModsPath;
     static std::string mSavePath;
     static std::string mConfigPath;
+    static std::string mScriptsPath;
+    static std::string mCachePath;
     static bool mInitialized;
 };
 

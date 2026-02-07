@@ -1,9 +1,10 @@
 #include "WiiUFileSystem.h"
 #include <coreinit/filesystem.h>
-#include <nsysnet/socket.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <unistd.h>
 #include <cstring>
+#include <cerrno>
 
 namespace rmx {
 
@@ -13,6 +14,8 @@ std::string WiiUFileSystem::mRomPath;
 std::string WiiUFileSystem::mModsPath;
 std::string WiiUFileSystem::mSavePath;
 std::string WiiUFileSystem::mConfigPath;
+std::string WiiUFileSystem::mScriptsPath;
+std::string WiiUFileSystem::mCachePath;
 bool WiiUFileSystem::mInitialized = false;
 
 bool WiiUFileSystem::initialize()
@@ -20,12 +23,14 @@ bool WiiUFileSystem::initialize()
     if (mInitialized)
         return true;
 
-    // Set up Wii U paths
-    mBasePath = "/vol/external01/sonic3air/";
-    mRomPath = mBasePath + "rom/";
-    mModsPath = mBasePath + "mods/";
-    mSavePath = mBasePath + "save/";
-    mConfigPath = mBasePath + "config/";
+    // Set up Wii U paths — must match PlatformFunctions::onEngineStartup()
+    mBasePath    = "/vol/external01/S3AIR/";
+    mRomPath     = mBasePath + "roms/";
+    mModsPath    = mBasePath + "mods/";
+    mSavePath    = mBasePath + "saves/";
+    mConfigPath  = mBasePath + "config/";
+    mScriptsPath = mBasePath + "scripts/";
+    mCachePath   = mBasePath + "cache/";
 
     // Ensure all required directories exist
     if (!ensureDirectoriesExist())
@@ -47,26 +52,39 @@ std::string WiiUFileSystem::getWiiUPath(const std::string& relativePath)
     if (!mInitialized)
         return relativePath;
 
+    // Already an absolute Wii U path
+    if (relativePath.size() > 0 && relativePath[0] == '/')
+        return relativePath;
+
     // Handle common path prefixes
     if (relativePath.find("data/audio/") == 0)
     {
-        return mRomPath + "audio/" + relativePath.substr(11); // Remove "data/audio/"
+        return mRomPath + "audio/" + relativePath.substr(11);
     }
     else if (relativePath.find("data/") == 0)
     {
-        return mRomPath + relativePath.substr(5); // Remove "data/"
+        return mRomPath + relativePath.substr(5);
+    }
+    else if (relativePath.find("scripts/") == 0)
+    {
+        return mScriptsPath + relativePath.substr(8);
     }
     else if (relativePath.find("mods/") == 0)
     {
-        return mModsPath + relativePath.substr(5); // Remove "mods/"
+        return mModsPath + relativePath.substr(5);
     }
-    else if (relativePath.find("save/") == 0)
+    else if (relativePath.find("save/") == 0 || relativePath.find("saves/") == 0)
     {
-        return mSavePath + relativePath.substr(5); // Remove "save/"
+        size_t skip = (relativePath[4] == '/') ? 5 : 6;
+        return mSavePath + relativePath.substr(skip);
     }
     else if (relativePath.find("config/") == 0)
     {
-        return mConfigPath + relativePath.substr(7); // Remove "config/"
+        return mConfigPath + relativePath.substr(7);
+    }
+    else if (relativePath.find("cache/") == 0)
+    {
+        return mCachePath + relativePath.substr(6);
     }
 
     // If no special prefix, treat as relative to base path
@@ -85,7 +103,6 @@ bool WiiUFileSystem::createDirectory(const std::string& path)
     if (path.empty())
         return false;
 
-    // Use mkdir with proper permissions
     int result = mkdir(path.c_str(), 0755);
     return (result == 0 || errno == EEXIST);
 }
@@ -94,6 +111,22 @@ bool WiiUFileSystem::createDirectory(const std::wstring& path)
 {
     std::string utf8Path(path.begin(), path.end());
     return createDirectory(utf8Path);
+}
+
+bool WiiUFileSystem::createDirectoryRecursive(const std::string& path)
+{
+    if (path.empty()) return false;
+    if (directoryExists(path)) return true;
+
+    // Find parent and create recursively
+    size_t pos = path.find_last_of('/');
+    if (pos != std::string::npos && pos > 0)
+    {
+        std::string parent = path.substr(0, pos);
+        if (!createDirectoryRecursive(parent))
+            return false;
+    }
+    return createDirectory(path);
 }
 
 bool WiiUFileSystem::directoryExists(const std::string& path)
@@ -114,7 +147,7 @@ bool WiiUFileSystem::directoryExists(const std::wstring& path)
 bool WiiUFileSystem::fileExists(const std::string& path)
 {
     struct stat statbuf;
-    return (stat(path.c_str(), &statbuf) == 0);
+    return (stat(path.c_str(), &statbuf) == 0 && !S_ISDIR(statbuf.st_mode));
 }
 
 bool WiiUFileSystem::fileExists(const std::wstring& path)
@@ -123,59 +156,49 @@ bool WiiUFileSystem::fileExists(const std::wstring& path)
     return fileExists(utf8Path);
 }
 
-const std::string& WiiUFileSystem::getBasePath()
+bool WiiUFileSystem::deleteFile(const std::string& path)
 {
-    return mBasePath;
+    return (::remove(path.c_str()) == 0);
 }
 
-const std::string& WiiUFileSystem::getRomPath()
+std::vector<std::string> WiiUFileSystem::listDirectory(const std::string& path)
 {
-    return mRomPath;
+    std::vector<std::string> entries;
+    DIR* dir = opendir(path.c_str());
+    if (!dir) return entries;
+    struct dirent* ent;
+    while ((ent = readdir(dir)) != nullptr)
+    {
+        if (ent->d_name[0] == '.' && (ent->d_name[1] == '\0' || (ent->d_name[1] == '.' && ent->d_name[2] == '\0')))
+            continue;
+        entries.emplace_back(ent->d_name);
+    }
+    closedir(dir);
+    return entries;
 }
 
-const std::string& WiiUFileSystem::getModsPath()
-{
-    return mModsPath;
-}
-
-const std::string& WiiUFileSystem::getSavePath()
-{
-    return mSavePath;
-}
-
-const std::string& WiiUFileSystem::getConfigPath()
-{
-    return mConfigPath;
-}
+const std::string& WiiUFileSystem::getBasePath()    { return mBasePath; }
+const std::string& WiiUFileSystem::getRomPath()      { return mRomPath; }
+const std::string& WiiUFileSystem::getModsPath()     { return mModsPath; }
+const std::string& WiiUFileSystem::getSavePath()     { return mSavePath; }
+const std::string& WiiUFileSystem::getConfigPath()   { return mConfigPath; }
+const std::string& WiiUFileSystem::getScriptsPath()  { return mScriptsPath; }
+const std::string& WiiUFileSystem::getCachePath()    { return mCachePath; }
 
 bool WiiUFileSystem::ensureDirectoriesExist()
 {
-    // Create all required directories
-    if (!createDirectory(mBasePath))
-        return false;
-
-    if (!createDirectory(mRomPath))
-        return false;
-
-    if (!createDirectory(mModsPath))
-        return false;
-
-    if (!createDirectory(mSavePath))
-        return false;
-
-    if (!createDirectory(mConfigPath))
-        return false;
-
-    // Create audio subdirectories
-    if (!createDirectory(mRomPath + "audio/"))
-        return false;
-
-    if (!createDirectory(mRomPath + "audio/original/"))
-        return false;
-
-    if (!createDirectory(mRomPath + "audio/remastered/"))
-        return false;
-
+    const std::string dirs[] = {
+        mBasePath, mRomPath, mModsPath, mSavePath, mConfigPath,
+        mScriptsPath, mCachePath,
+        mRomPath + "audio/",
+        mRomPath + "audio/original/",
+        mRomPath + "audio/remastered/"
+    };
+    for (const auto& d : dirs)
+    {
+        if (!createDirectory(d))
+            return false;
+    }
     return true;
 }
 

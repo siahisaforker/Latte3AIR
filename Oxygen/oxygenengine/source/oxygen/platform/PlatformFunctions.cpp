@@ -365,6 +365,8 @@ void PlatformFunctions::onEngineStartup()
 			FTX::FileSystem->createDirectory(base + L"mods/");
 			FTX::FileSystem->createDirectory(base + L"logs/");
 			FTX::FileSystem->createDirectory(base + L"config/");
+			FTX::FileSystem->createDirectory(base + L"scripts/");
+			FTX::FileSystem->createDirectory(base + L"cache/");
 
 			rmx::Logging::addLogger(*new rmx::FileLogger(base + std::wstring(L"logs/debug.log"), true, false));
 			rmx::Logging::addLogger(*new rmx::StdCoutLogger(true));
@@ -415,6 +417,8 @@ std::wstring PlatformFunctions::getAppDataPath()
 	}
 #elif defined(PLATFORM_MAC) || defined(PLATFORM_IOS)
 	return mExAppDataPath;
+#elif defined(PLATFORM_WIIU)
+	return L"/vol/external01/S3AIR";
 #endif
 	return L"";
 }

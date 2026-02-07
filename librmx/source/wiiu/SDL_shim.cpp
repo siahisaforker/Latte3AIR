@@ -17,6 +17,8 @@
 
 #include <vpad/input.h>
 #include <coreinit/time.h>
+#include <whb/proc.h>
+#include <proc_ui/procui.h>
 
 struct SDL_RWops
 {
@@ -100,6 +102,7 @@ int SDL_Init(Uint32)
 {
 	RMX_LOG_INFO("SDL_Init: initializing VPAD");
 	VPADInit();
+	WHBProcInit();
 	return 0;
 }
 
@@ -110,6 +113,7 @@ int SDL_InitSubSystem(Uint32)
 
 void SDL_Quit()
 {
+	WHBProcShutdown();
 }
 
 void SDL_QuitSubSystem(Uint32)
@@ -137,9 +141,18 @@ void SDL_Delay(Uint32 ms)
 	OSSleepTicks(OSMillisecondsToTicks(ms));
 }
 
-int SDL_PollEvent(SDL_Event*)
+int SDL_PollEvent(SDL_Event* event)
 {
-	// Event queue is not used on Wii U; input is polled via joystick APIs.
+	// Check ProcUI lifecycle (HOME button / app exit)
+	if (!WHBProcIsRunning())
+	{
+		if (event)
+		{
+			std::memset(event, 0, sizeof(SDL_Event));
+			event->type = SDL_QUIT;
+		}
+		return 1;
+	}
 	return 0;
 }
 
@@ -1099,6 +1112,22 @@ void SDL_CondSignal(SDL_cond* cond)
 	if (cond) cond->cond.signal();
 }
 
+int SDL_CondWait(SDL_cond* cond, SDL_mutex* mutex)
+{
+	if (!cond || !mutex)
+		return -1;
+	cond->cond.wait(mutex->mutex);
+	return 0;
+}
+
+int SDL_CondBroadcast(SDL_cond* cond)
+{
+	// WiiU condition variables only support signal, broadcast to single waiter
+	if (!cond) return -1;
+	cond->cond.signal();
+	return 0;
+}
+
 int SDL_CondWaitTimeout(SDL_cond* cond, SDL_mutex* mutex, Uint32 ms)
 {
 	if (!cond || !mutex)
@@ -1108,4 +1137,123 @@ int SDL_CondWaitTimeout(SDL_cond* cond, SDL_mutex* mutex, Uint32 ms)
 	// For simplicity, we'll just wait without timeout
 	cond->cond.wait(mutex->mutex);
 	return 0;
+}
+
+// ---- Performance Counter ----
+Uint64 SDL_GetPerformanceCounter()
+{
+	return static_cast<Uint64>(OSGetSystemTime());
+}
+
+Uint64 SDL_GetPerformanceFrequency()
+{
+	// Wii U system timer runs at bus speed / 4 ≈ 62.5 MHz
+	return static_cast<Uint64>(OSTimerClockSpeed);
+}
+
+// ---- Base / Pref Path ----
+char* SDL_GetBasePath()
+{
+	// Return the SD card app directory
+	const char* path = "/vol/external01/sonic3air/";
+	size_t len = std::strlen(path);
+	char* ret = static_cast<char*>(std::malloc(len + 1));
+	if (ret) std::strcpy(ret, path);
+	return ret;
+}
+
+char* SDL_GetPrefPath(const char* /*org*/, const char* /*app*/)
+{
+	const char* path = "/vol/external01/sonic3air/save/";
+	size_t len = std::strlen(path);
+	char* ret = static_cast<char*>(std::malloc(len + 1));
+	if (ret) std::strcpy(ret, path);
+	return ret;
+}
+
+// ---- Scancode helpers ----
+SDL_Scancode SDL_GetScancodeFromKey(SDL_Keycode key)
+{
+	// Simple passthrough — on Wii U we map VPAD → keycodes directly
+	if (key >= 'a' && key <= 'z') return static_cast<SDL_Scancode>(key - 'a' + 4);
+	if (key >= '1' && key <= '9') return static_cast<SDL_Scancode>(key - '1' + 30);
+	if (key == '0') return static_cast<SDL_Scancode>(39);
+	if (key == SDLK_RETURN) return static_cast<SDL_Scancode>(40);
+	if (key == SDLK_ESCAPE) return static_cast<SDL_Scancode>(41);
+	if (key == SDLK_BACKSPACE) return static_cast<SDL_Scancode>(42);
+	if (key == SDLK_TAB) return static_cast<SDL_Scancode>(43);
+	if (key == SDLK_SPACE) return static_cast<SDL_Scancode>(44);
+	if (key == SDLK_RIGHT) return static_cast<SDL_Scancode>(79);
+	if (key == SDLK_LEFT) return static_cast<SDL_Scancode>(80);
+	if (key == SDLK_DOWN) return static_cast<SDL_Scancode>(81);
+	if (key == SDLK_UP) return static_cast<SDL_Scancode>(82);
+	return static_cast<SDL_Scancode>(0);
+}
+
+const char* SDL_GetKeyName(SDL_Keycode key)
+{
+	static char buf[16];
+	if (key >= 'a' && key <= 'z') { buf[0] = static_cast<char>(key - 32); buf[1] = '\0'; return buf; }
+	if (key >= '0' && key <= '9') { buf[0] = static_cast<char>(key); buf[1] = '\0'; return buf; }
+	return "Unknown";
+}
+
+const char* SDL_GetScancodeName(SDL_Scancode)
+{
+	return "Unknown";
+}
+
+// ---- Audio Mixing ----
+void SDL_MixAudioFormat(Uint8* dst, const Uint8* src, SDL_AudioFormat format, Uint32 len, int volume)
+{
+	(void)format; // Only handle AUDIO_S16LSB
+	if (!dst || !src || volume == 0) return;
+	if (volume > 128) volume = 128;
+	const Sint16* s = reinterpret_cast<const Sint16*>(src);
+	Sint16* d = reinterpret_cast<Sint16*>(dst);
+	Uint32 samples = len / 2;
+	for (Uint32 i = 0; i < samples; ++i)
+	{
+		Sint32 mixed = static_cast<Sint32>(d[i]) + ((static_cast<Sint32>(s[i]) * volume) / 128);
+		if (mixed > 32767) mixed = 32767;
+		if (mixed < -32768) mixed = -32768;
+		d[i] = static_cast<Sint16>(mixed);
+	}
+}
+
+void SDL_MixAudio(Uint8* dst, const Uint8* src, Uint32 len, int volume)
+{
+	SDL_MixAudioFormat(dst, src, AUDIO_S16LSB, len, volume);
+}
+
+// ---- Display helpers ----
+const char* SDL_GetCurrentVideoDriver()
+{
+	return "WiiU";
+}
+
+int SDL_GetCurrentDisplayMode(int, SDL_DisplayMode* mode)
+{
+	if (!mode) return -1;
+	mode->w = 1280;
+	mode->h = 720;
+	mode->refresh_rate = 60;
+	mode->driverdata = nullptr;
+	return 0;
+}
+
+int SDL_GetNumVideoDisplays()
+{
+	return 2; // TV + DRC
+}
+
+// ---- Misc ----
+const char* SDL_GetPlatform()
+{
+	return "Wii U";
+}
+
+int SDL_GetCPUCount()
+{
+	return 3; // Wii U has 3 cores
 }

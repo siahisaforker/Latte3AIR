@@ -608,9 +608,38 @@ void SDL_UnlockMutex(SDL_mutex* mutex);
 SDL_cond* SDL_CreateCond();
 void SDL_DestroyCond(SDL_cond* cond);
 void SDL_CondSignal(SDL_cond* cond);
+int SDL_CondWait(SDL_cond* cond, SDL_mutex* mutex);
+int SDL_CondBroadcast(SDL_cond* cond);
 int SDL_CondWaitTimeout(SDL_cond* cond, SDL_mutex* mutex, Uint32 ms);
 Uint16 SDL_GetModState();
 void SDL_WarpMouseInWindow(SDL_Window* window, int x, int y);
+
+// Performance counter
+Uint64 SDL_GetPerformanceCounter();
+Uint64 SDL_GetPerformanceFrequency();
+
+// Base / pref path
+char* SDL_GetBasePath();
+char* SDL_GetPrefPath(const char* org, const char* app);
+
+// Scancode helpers
+SDL_Scancode SDL_GetScancodeFromKey(SDL_Keycode key);
+const char* SDL_GetKeyName(SDL_Keycode key);
+const char* SDL_GetScancodeName(SDL_Scancode scancode);
+
+// Audio mixing
+void SDL_MixAudioFormat(Uint8* dst, const Uint8* src, SDL_AudioFormat format, Uint32 len, int volume);
+void SDL_MixAudio(Uint8* dst, const Uint8* src, Uint32 len, int volume);
+
+// Display
+const char* SDL_GetCurrentVideoDriver();
+int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode* mode);
+int SDL_GetNumVideoDisplays();
+
+// Misc
+const char* SDL_GetPlatform();
+int SDL_GetCPUCount();
+
 // Init flags
 #define SDL_INIT_VIDEO    0x00000020u
 #define SDL_INIT_AUDIO    0x00000010u
@@ -633,3 +662,4 @@ typedef void* SDL_GLContext;
 
 // Button/Key states
 #define SDL_PRESSED 1
+
