@@ -18,7 +18,25 @@
 
 namespace rmx
 {
-#if !defined(__vita__)
+#if RMX_IS_BIG_ENDIAN
+	// On big-endian hosts, "swapped" read from big-endian emulated memory is just a plain read
+	template<typename T>
+	T readMemoryUnaligned(const void* pointer)
+	{
+		T val;
+		__builtin_memcpy(&val, pointer, sizeof(T));
+		return val;
+	}
+
+	template<typename T>
+	T readMemoryUnalignedSwapped(const void* pointer)
+	{
+		T val;
+		__builtin_memcpy(&val, pointer, sizeof(T));
+		return val;  // No swap needed — data is already in native byte order
+	}
+
+#elif !defined(__vita__)
 	template<typename T>
 	T readMemoryUnaligned(const void* pointer) { return *(T*)pointer; }
 

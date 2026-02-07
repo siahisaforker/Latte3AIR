@@ -35,6 +35,14 @@
 #endif
 
 
+// Endianness detection — Mega Drive data is big-endian; on BE hosts byte-swaps are no-ops
+#if defined(__BIG_ENDIAN__) || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) || defined(PLATFORM_WIIU)
+	#define RMX_IS_BIG_ENDIAN 1
+#else
+	#define RMX_IS_BIG_ENDIAN 0
+#endif
+
+
 // Data types
 typedef signed char		int8;
 typedef unsigned char	uint8;

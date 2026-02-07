@@ -536,8 +536,13 @@ namespace
 		uint32* targetPointer = (uint32*)getEmulatorInterface().getMemoryPointer(targetAddress, true, (uint32)numColors * sizeof(uint32));
 		for (size_t i = 0; i < numColors; ++i)
 		{
+#if RMX_IS_BIG_ENDIAN
+			// Host is already big-endian, matching emulated memory byte order
+			targetPointer[i] = colors[i];
+#else
 			// Maintain ABGR32 color format despite endianness change by swapping bytes
 			targetPointer[i] = swapBytes32(colors[i]);
+#endif
 		}
 		return (uint16)numColors;
 	}

@@ -246,20 +246,31 @@ void EmulatorInterface::writeMemory8(uint32 address, uint8 value)
 void EmulatorInterface::writeMemory16(uint32 address, uint16 value)
 {
 	uint16* mem = (uint16*)mInternal.accessMemory<MEMORY_MODE_WRITE>(address, 2);
+#if RMX_IS_BIG_ENDIAN
+	*mem = value;  // Host is already big-endian, same as Mega Drive
+#else
 	*mem = swapBytes16(value);
+#endif
 }
 
 void EmulatorInterface::writeMemory32(uint32 address, uint32 value)
 {
 	uint32* mem = (uint32*)mInternal.accessMemory<MEMORY_MODE_WRITE>(address, 4);
+#if RMX_IS_BIG_ENDIAN
+	*mem = value;
+#else
 	*mem = swapBytes32(value);
+#endif
 }
 
 void EmulatorInterface::writeMemory64(uint32 address, uint64 value)
 {
-	// TODO: Check if the ARM byte alignment issue an Android (see "readMemory64") can happen here as well
 	uint64* mem = (uint64*)mInternal.accessMemory<MEMORY_MODE_WRITE>(address, 8);
+#if RMX_IS_BIG_ENDIAN
+	*mem = value;
+#else
 	*mem = swapBytes64(value);
+#endif
 }
 
 void EmulatorInterface::writeMemory8_dev(uint32 address, uint8 value)
@@ -270,19 +281,31 @@ void EmulatorInterface::writeMemory8_dev(uint32 address, uint8 value)
 void EmulatorInterface::writeMemory16_dev(uint32 address, uint16 value)
 {
 	uint16* mem = (uint16*)mInternal.accessMemory<MEMORY_MODE_WRITE_DEV>(address, 2);
+#if RMX_IS_BIG_ENDIAN
+	*mem = value;
+#else
 	*mem = swapBytes16(value);
+#endif
 }
 
 void EmulatorInterface::writeMemory32_dev(uint32 address, uint32 value)
 {
 	uint32* mem = (uint32*)mInternal.accessMemory<MEMORY_MODE_WRITE_DEV>(address, 4);
+#if RMX_IS_BIG_ENDIAN
+	*mem = value;
+#else
 	*mem = swapBytes32(value);
+#endif
 }
 
 void EmulatorInterface::writeMemory64_dev(uint32 address, uint64 value)
 {
 	uint64* mem = (uint64*)mInternal.accessMemory<MEMORY_MODE_WRITE_DEV>(address, 8);
+#if RMX_IS_BIG_ENDIAN
+	*mem = value;
+#else
 	*mem = swapBytes64(value);
+#endif
 }
 
 uint32& EmulatorInterface::getRegister(size_t index)
@@ -362,7 +385,11 @@ void EmulatorInterface::copyFromMemoryToVRam(uint16 vramAddress, uint32 sourceAd
 	const uint16* end = src + (bytes / 2);
 	for (; src != end; ++src, ++dst)
 	{
+#if RMX_IS_BIG_ENDIAN
+		*dst = *src;  // Both are big-endian, no swap needed
+#else
 		*dst = swapBytes16(*src);
+#endif
 	}
 
 	// Mark as changed
@@ -388,7 +415,11 @@ std::vector<EmulatorInterface::Watch>& EmulatorInterface::getWatches()
 
 void EmulatorInterface::getDirectAccessSpecialization(SpecializationResult& outResult, uint64 address, size_t size, bool writeAccess)
 {
+#if RMX_IS_BIG_ENDIAN
+	outResult.mSwapBytes = false;  // Data is already in native byte order
+#else
 	outResult.mSwapBytes = true;
+#endif
 	address &= 0x00ffffff;
 	if (address >= 0xff0000)
 	{
