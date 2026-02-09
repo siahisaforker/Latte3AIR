@@ -2,6 +2,7 @@
 
 This project aims to be native Wii U port of **Sonic 3 A.I.R.** (Angel Island Revisited), a fan-made remaster of Sonic 3 & Knuckles built on the Oxygen Engine.
 
+**HUGE THANKS TO THE AROMA DISCORD FOR POINTING ME TO GREAT TOOLS FOR USE WITH THIS PROJECT!!**
 ## Project Status
 
 **Current State: CPU Shader Pipeline Complete — Runtime Testing Phase**
