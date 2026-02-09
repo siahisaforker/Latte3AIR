@@ -319,4 +319,4 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 
 **Note 2**: If the build crashes or shows unexpected behavior at runtime, check the logging output, it shows exactly what initializes as it happens. Test on Cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md).
 
-**Note 3***: ROM Data is loaded into RAM because 1. it's much faster then loading from SD (plus, some sd cards might not be fast enough) 2. Easier for the user and me for testing
+**Note 3***: ROM Data is loaded into RAM because 1. it's much faster then loading from SD (plus, some sd cards might not be fast enough) 2. Easier for the user and me for testing. Load from SD card is a fallback and is not ideal.
