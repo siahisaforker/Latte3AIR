@@ -148,7 +148,6 @@ make PLATFORM=WiiU -j8
 ### Runtime Issues
 - **Black screen**: Check ROM file location and name
 - **No input**: Ensure GamePad is connected and initialized
-- **Audio issues**: Verify audio files are present
 
 ### Common Errors
 - `ROM not found`: Ensure `Sonic_Knuckles_wSonic3.bin` is in the correct directory
