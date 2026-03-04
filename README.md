@@ -2,6 +2,16 @@
 
 This project aims to be native Wii U port of **Sonic 3 A.I.R.** (Angel Island Revisited), a fan-made remaster of Sonic 3 & Knuckles built on the Oxygen Engine.
 
+
+
+## Quick Start 1 (releases tab)
+Grab an RPX or wuhb from the releases page.
+
+Place RPX or wuhb in apps folder
+
+Extract Sonic3AIR to the root of your SD Card, place "Sonic_Knuckles_wSonic3.bin" in the "data" folder
+
+
 **HUGE THANKS TO THE AROMA DISCORD**
 ## Project Status
 
@@ -16,7 +26,7 @@ The Wii U port compiles cleanly to an RPX and all major engine subsystems have b
 - [x] Input handling — VPAD (GamePad) + KPAD (Pro Controller) with analog stick → D-pad fallback
 - [x] Audio — complete AudioManager mixer running on a dedicated Wii U thread with AX voice output
 - [x] Filesystem — SD card paths unified to `/vol/external01/S3AIR/` with `roms/`, `saves/`, `mods/` subdirs
-- [x] Embedded ROM loading — 4 MB ROM baked into the RPX via `rom_data.h` (SD card too slow for reliable streaming)
+- [x] Embedded ROM loading — 4 MB ROM baked into the RPX via `rom_data.h` (SD card too slow for reliable streaming, disabled on prebuilts)
 - [x] ProcUI lifecycle — HOME button handling via WHBProcInit/IsRunning/Shutdown in SDL shim
 - [x] Networking — netplay disabled at compile time with clear guard; network init skipped on Wii U
 - [x] Performance instrumentation — `wiiu_perf` profiling helpers ready for runtime tuning
@@ -24,7 +34,7 @@ The Wii U port compiles cleanly to an RPX and all major engine subsystems have b
 - [x] GX2 fast-path expansion — buffer textures, palette lookup, multi-texture, FBO render-to-texture
 - [ ] Runtime testing and performance optimization on real hardware
 
-## Quick Start
+## Quick Start 2 (manual building, reccomended)
 
 ### Prerequisites
 - **Wii U with Aroma** (or compatible homebrew environment like Tiramisu)
@@ -40,45 +50,21 @@ export PATH="/opt/devkitpro/devkitPPC/bin:$PATH"
 
 # Build the Oxygen engine for Wii U
 cd Oxygen/sonic3air/build/_make
-make PLATFORM=WiiU -j8
+make PLATFORM=WiiU (-j8 as an example, the number of cores you want to use is what number to put after j)
 ```
 
 The build produces:
-- `sonic3air.rpx` - Main executable
-- Required libraries and resources
-
-
+- `sonic3air.rpx` - Executable
 
 
 ### Paths
 The port automatically tries to detect these locations:
 
-`/vol/external01/S3AIR/data/` — place your `Sonic_Knuckles_wSonic3.bin` here (if not using embedded ROM), build the windows version and put audiodata.bin/enginedata.bin/gamedata.bin/metadata.json (rename to content.json)/scripts.bin
+`/vol/external01/Sonic3AIR/data/` — place your `Sonic_Knuckles_wSonic3.bin` here (if not using embedded ROM), build the windows version and put audiodata.bin/enginedata.bin/gamedata.bin/metadata.json (rename to content.json)/scripts.bin
 
-`/vol/external01/S3AIR/saves/` — persistent save data is written here automatically
+`/vol/external01/Sonic3AIR/saves/` — persistent save data is written here automatically
 
-`/vol/external01/S3AIR/mods/` — drop mod folders here
-
-## Features
-
-### Implemented
-- **Video**: OSScreen fallback + GX2 (WHBGfx) rendering; broad `gl_compat` layer with software rasterizer
-- **Input**: Native Wii U GamePad (VPAD) + Pro Controller (KPAD) support with analog→digital fallback
-- **Audio**: Full AudioManager mixer on dedicated thread → AX voice output (sndcore2 backend)
-- **Endianness**: Correct big-endian handling — M68K and Wii U share byte order, double-swaps eliminated
-- **Filesystem**: Unified SD card paths (`/vol/external01/S3AIR/`) with `roms/`, `saves/`, `mods/` subdirs
-- **ROM Loading**: Embedded ROM via `rom_data.h` (4 MB baked into RPX); SD card read as fallback
-- **Save System**: Persistent game saves to SD card
-- **Mods**: Mod loading from SD card
-- **ProcUI**: HOME button lifecycle management (WHBProc integration in SDL shim)
-- **Network**: Netplay gracefully disabled with compile-time guard; `wiiu_net` TCP wrapper ready for future use
-- **Performance Tools**: `wiiu_perf` instrumentation (scoped timers, per-section reporting)
-- **GX2 Renderer**: Basic GX2 rendering backend with textured triangle fast-path
-- **OSScreen Renderer**: Fallback framebuffer renderer with text overlay support
-
-### Remaining Work
-- **Runtime Testing**: Test on real Wii U hardware or Cemu; validate all 14 CPU shader paths produce correct visuals
-- **Performance Optimization**: Profile on real hardware; identify hot shader paths and optimize pixel loops
+`/vol/external01/Sonic3AIR/mods/` — drop mod folders here (mods that alter shader behavior may not work. use with caution)
 
   
 ## Technical Details
@@ -146,13 +132,11 @@ make PLATFORM=WiiU -j8
 ```
 
 ### Runtime Issues
-- **Black screen**: Check ROM file location and name
-- **No input**: Ensure GamePad is connected and initialized
+- **Black screen**: Check if ROM is in the correct path
+- **No input**: Ensure your controller is connected before launching game
 
 ### Common Errors
 - `ROM not found`: Ensure `Sonic_Knuckles_wSonic3.bin` is in the correct directory
-- `Failed to initialize graphics`: Check if GX2 is avalible (logging is avalible, check the logs to see if GX2 could initialize)
-- `Audio device error`: Verify sndcore2 is properly initialized
 
 ### Wii U build notes (short)
 - Recommended environment: WSL + DevkitPro/WUT installed under `/opt/devkitpro`.
@@ -180,7 +164,6 @@ Build artifact: `bin/WiiU/sonic3air.rpx` (produced by the build).
 1. Clone this repository
 2. Install DevkitPro then get wiiu-dev from pacman
 3. Build using the instructions above
-4. Test with Cemu or real hardware
 
 ## Documentation
 
@@ -313,7 +296,7 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 
 ---
 
-**Note**: The port is code-complete with a full CPU shader pipeline and builds cleanly to `bin/WiiU/sonic3air.rpx`. All 14 engine GLSL shaders have been reimplemented as C++ CPU shaders in `wiiu_shaders.cpp`. Remaining work is runtime testing and performance tuning on real hardware.
+**Note**: The game currently does not get past the disclaimer screen. if it does, you have a miracle on your hands
 
 **Note 2**: If the build crashes or shows unexpected behavior at runtime, check the logging output, it shows exactly what initializes as it happens. Test on Cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md).
 
