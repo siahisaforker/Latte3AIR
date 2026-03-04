@@ -154,11 +154,11 @@ Build artifact: `bin/WiiU/sonic3air.rpx` (produced by the build).
 ## Contributing
 
 ### Areas for Contribution
-- **Network Layer**: Adapt netplay code for Wii U networking
-- **Performance**: Optimize for Wii U hardware constraints
-- **Graphics**: Improve GX2 renderer
-- **Audio**: Enhance audio quality and features
-- **Input**: Add support for additional controllers
+-̶ ̶*̶*̶N̶e̶t̶w̶o̶r̶k̶ ̶L̶a̶y̶e̶r̶*̶*̶:̶ ̶A̶d̶a̶p̶t̶ ̶n̶e̶t̶p̶l̶a̶y̶ ̶c̶o̶d̶e̶ ̶f̶o̶r̶ ̶W̶i̶i̶ ̶U̶ ̶n̶e̶t̶w̶o̶r̶k̶i̶n̶g̶
+̶-̶ ̶*̶*̶P̶e̶r̶f̶o̶r̶m̶a̶n̶c̶e̶*̶*̶:̶ ̶O̶p̶t̶i̶m̶i̶z̶e̶ ̶f̶o̶r̶ ̶W̶i̶i̶ ̶U̶ ̶h̶a̶r̶d̶w̶a̶r̶e̶ ̶c̶o̶n̶s̶t̶r̶a̶i̶n̶t̶s̶
+̶-̶ ̶*̶*̶G̶r̶a̶p̶h̶i̶c̶s̶*̶*̶:̶ ̶I̶m̶p̶r̶o̶v̶e̶ ̶G̶X̶2̶ ̶r̶e̶n̶d̶e̶r̶e̶r̶
+̶-̶ ̶*̶*̶A̶u̶d̶i̶o̶*̶*̶:̶ ̶E̶n̶h̶a̶n̶c̶e̶ ̶a̶u̶d̶i̶o̶ ̶q̶u̶a̶l̶i̶t̶y̶ ̶a̶n̶d̶ ̶f̶e̶a̶t̶u̶r̶e̶s̶
+-̶ ̶*̶*̶I̶n̶p̶u̶t̶*̶*̶:̶ ̶A̶d̶d̶ ̶s̶u̶p̶p̶o̶r̶t̶ ̶f̶o̶r̶ ̶a̶d̶d̶i̶t̶i̶o̶n̶a̶l̶ ̶c̶o̶n̶t̶r̶o̶l̶l̶e̶r̶s̶
 
 ### Development Setup
 1. Clone this repository
