@@ -310,7 +310,6 @@ bash scripts/setup_wsl_devkitpro.sh
 This is a non-profit fan project. All Sonic characters and assets belong to SEGA. This project is not affiliated with SEGA or Sonic Team.
 
 **Original Project**: https://sonic3air.org/  
-**Wii U Port**: Community-driven adaptation
 
 ---
 
