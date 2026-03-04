@@ -296,7 +296,7 @@ This is a non-profit fan project. All Sonic characters and assets belong to SEGA
 
 ---
 
-**Note**: The game currently does not get past the disclaimer screen. if it does, you have a miracle on your hands
+**Note**: The game currently gets past the disclaimer screen, but actual gameplay doesn't work as of now. I'm working on a fix for this
 
 **Note 2**: If the build crashes or shows unexpected behavior at runtime, check the logging output, it shows exactly what initializes as it happens. Test on Cemu if needed. Create an Issue if you can't figure it out yourself, or report to the Discord (found in SETUP_GUIDE.md).
 
