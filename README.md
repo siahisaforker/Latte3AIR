@@ -4,7 +4,7 @@ This project aims to be native Wii U port of **Sonic 3 A.I.R.** (Angel Island Re
 
 
 
-## Quick Start 1 (releases tab)
+## Quick Start 1 (releases tab) - NOT AVALIBLE YET
 Grab an RPX or wuhb from the releases page.
 
 Place RPX or wuhb in apps folder
