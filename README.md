@@ -15,25 +15,6 @@ Extract Sonic3AIR to the root of your SD Card, place "Sonic_Knuckles_wSonic3.bin
 **HUGE THANKS TO THE AROMA DISCORD**
 ## Project Status
 
-**Current State: CPU Shader Pipeline Complete — Runtime Testing Phase**
-
-The Wii U port compiles cleanly to an RPX and all major engine subsystems have been implemented or adapted:
-
-- [x] Core Oxygen Engine builds and links for Wii U (PowerPC / Espresso)
-- [x] Big-endian correctness — byte-swaps disabled where M68K data is already native order
-- [x] Video output (OSScreen fallback + GX2 via WHBGfx; software renderer active)
-- [x] Full GL compatibility layer (`gl_compat`) — textures, buffers, VAO/VBO, shaders, framebuffers, uniforms, draw calls
-- [x] Input handling — VPAD (GamePad) + KPAD (Pro Controller) with analog stick → D-pad fallback
-- [x] Audio — complete AudioManager mixer running on a dedicated Wii U thread with AX voice output
-- [x] Filesystem — SD card paths unified to `/vol/external01/S3AIR/` with `roms/`, `saves/`, `mods/` subdirs
-- [x] Embedded ROM loading — 4 MB ROM baked into the RPX via `rom_data.h` (SD card too slow for reliable streaming, disabled on prebuilts)
-- [x] ProcUI lifecycle — HOME button handling via WHBProcInit/IsRunning/Shutdown in SDL shim
-- [x] Networking — netplay disabled at compile time with clear guard; network init skipped on Wii U
-- [x] Performance instrumentation — `wiiu_perf` profiling helpers ready for runtime tuning
-- [x] Full CPU shader pipeline — all 14 engine GLSL shaders reimplemented in C++ (`wiiu_shaders`)
-- [x] GX2 fast-path expansion — buffer textures, palette lookup, multi-texture, FBO render-to-texture
-- [ ] Runtime testing and performance optimization on real hardware
-
 ## Quick Start 2 (manual building, reccomended)
 
 ### Prerequisites
@@ -64,7 +45,9 @@ The port automatically tries to detect these locations:
 
 `/vol/external01/Sonic3AIR/saves/` — persistent save data is written here automatically
 
-`/vol/external01/Sonic3AIR/mods/` — drop mod folders here (mods that alter shader behavior may not work. use with caution)
+-comment, this is the legacy save location and is no longer relevant. Save data goes into the same folder as the rom
+
+`/vol/external01/Sonic3AIR/mods/` — drop mod folders here (mods that alter shader behavior may not work, if those even exist. use with caution)
 
   
 ## Technical Details
@@ -77,7 +60,7 @@ The port automatically tries to detect these locations:
   - `AudioManager.cpp` - Wii U audio implementation (inside `#if defined(PLATFORM_WIIU)` block)
   - `SDL_shim.cpp` - SDL compatibility layer with ProcUI lifecycle integration
   - `wiiu_shaders.cpp/.h` - CPU shader pipeline (all 14 engine shaders: planes, sprites, post-FX, palette-indexed)
-  - `WiiUGfx.cpp` - GX2/OSScreen abstraction with optimized blit
+  - `WiiUGfx.cpp` - GX2/OSScreen abstraction with optimized blit (disabled when SDL2-WiiU is avalible, used as fast path)
   - `WiiUAudio.h` - AX voice backend declarations
   - `WiiUFileSystem.cpp` - Path mapping to `/vol/external01/S3AIR/`
   - `rom_data.h` / `rom_data.cpp` - Embedded ROM (generated at build time via `bin2c.py`)
@@ -165,6 +148,8 @@ Build artifact: `bin/WiiU/sonic3air.rpx` (produced by the build).
 
 -̶ ̶*̶*̶I̶n̶p̶u̶t̶*̶*̶:̶ ̶A̶d̶d̶ ̶s̶u̶p̶p̶o̶r̶t̶ ̶f̶o̶r̶ ̶a̶d̶d̶i̶t̶i̶o̶n̶a̶l̶ ̶c̶o̶n̶t̶r̶o̶l̶l̶e̶r̶s̶
 
+-- **Optimization:** Optimize GX2 fast paths and identify redness cause
+
 ### Development Setup
 1. Clone this repository
 2. Install DevkitPro then get wiiu-dev from pacman
@@ -224,7 +209,6 @@ Follow the platform section that matches your development environment. All platf
     make -f Makefile PLATFORM=WiiU -j8
     ```
 
-If you encounter missing symbols during link, ensure `LIBPATHS` in `Oxygen/sonic3air/build/_make/Makefile_cfgs/Platforms/WiiU.cfg` includes `-L$(DEVKITPRO)/portlibs/ppc/lib` and that required `LIBS` include `-lvorbis -lvorbisfile -logg -ltheora -ltheoradec -lz -latomic -lgcc`.
 
 ### Host distributions (common)
 
