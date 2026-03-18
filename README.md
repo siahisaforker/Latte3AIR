@@ -15,6 +15,8 @@ Extract Sonic3AIR to the root of your SD Card, place "Sonic_Knuckles_wSonic3.bin
 **HUGE THANKS TO THE AROMA DISCORD**
 ## Project Status
 
+In the final stages, just need to correct redness and debug some soft crashes (exit back to the main menu, NO clue why this happens)
+
 ## Quick Start 2 (manual building, reccomended)
 
 ### Prerequisites
