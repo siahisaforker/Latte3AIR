@@ -2,6 +2,13 @@
 
 This project aims to be native Wii U port of **Sonic 3 A.I.R.** (Angel Island Revisited), a fan-made remaster of Sonic 3 & Knuckles built on the Oxygen Engine.
 
+## Legal
+
+This is a non-profit fan project. All Sonic characters and assets belong to SEGA. This project is not affiliated with SEGA or Sonic Team.
+
+**Original Project**: https://sonic3air.org/  
+
+---
 
 
 ## Quick Start 1 (releases tab) - NOT AVALIBLE YET
@@ -267,13 +274,7 @@ bash scripts/setup_wsl_devkitpro.sh
 ```
 
 
-## Legal
 
-This is a non-profit fan project. All Sonic characters and assets belong to SEGA. This project is not affiliated with SEGA or Sonic Team.
-
-**Original Project**: https://sonic3air.org/  
-
----
 
 **Note**: The game currently gets past the disclaimer screen, but actual gameplay doesn't work as of now. I'm working on a fix for this
 
