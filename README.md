@@ -17,6 +17,8 @@ Extract Sonic3AIR to the root of your SD Card, place "Sonic_Knuckles_wSonic3.bin
 
 In the final stages, just need to correct redness and debug some soft crashes (exit back to the main menu, NO clue why this happens)
 
+Also trying to implement ANGLE for GL since my definitions were kinda weak
+
 ## Quick Start 2 (manual building, reccomended)
 
 ### Prerequisites
